@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "dependencies": {
     "@biomejs/biome": "^1.8.3",
@@ -21,8 +22,12 @@
   "devDependencies": {
     "@types/node": "^22.4.0",
     "@vitejs/plugin-vue": "^5.1.2",
+    "@vitest/browser": "^2.0.5",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^14.12.3",
     "typescript": "^5.5.3",
     "vite": "^5.4.1",
+    "vitest": "^2.0.5",
     "vue-tsc": "^2.0.29"
   }
 }
