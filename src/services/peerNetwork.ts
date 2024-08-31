@@ -1,159 +1,122 @@
 import Peer from 'peerjs';
 import type { DataConnection } from 'peerjs';
 
-const isTestEnvironment = process.env.NODE_ENV === "test";
-
-if (isTestEnvironment && typeof window !== "undefined") {
-  (window as any).peerInstances = (window as any).peerInstances || [];
-}
-
-
-type Action = {
-  type: string;
-  payload: object | undefined;
+type TimerState = {
+  startTime: number;
+  elapsedTime: number;
+  running: boolean;
 };
 
-type Update = {
-  type: string;
-  payload: object | undefined;
-};
+type Message =
+  | { type: 'timerState'; payload: TimerState }
+  | { type: 'playPause'; payload: null }
+  | { type: 'clientList'; payload: string[] };
 
-type PublisherSubscriber = {
-  connection: DataConnection;
-  send: (update: Update) => void;
-};
+class PeerNetwork {
+  private peer: Peer;
+  private connections: Map<string, DataConnection> = new Map();
+  private messageHandlers: Map<string, (payload: any) => void> = new Map();
+  public isServer = false;
+  public clientIds: string[] = [];
 
-type Publisher = {
-  peer: Peer;
-  subscribers: Map<string, PublisherSubscriber>;
-  publish: (update: Update) => void;
-  disconnect: () => void;
-  id: string;
-};
-
-type Subscriber = {
-  peer: Peer;
-  publisher: DataConnection | null;
-  subscribe: (channelId: string) => void;
-  dispatchAction: (action: Action) => void;
-  unsubscribe: () => void;
-  id: string;
-};
-
-const createPeer = (id: string): Peer => {
-  const peer = new Peer(id);
-  if (isTestEnvironment && typeof window !== "undefined") {
-    (window as any).peerInstances.push(peer);
+  constructor(id?: string) {
+    this.peer = id ? new Peer(id) : new Peer();
+    this.peer.on('open', this.onOpen.bind(this));
+    this.peer.on('connection', this.onConnection.bind(this));
+    this.peer.on('error', this.onError.bind(this));
   }
-  return peer;
-};
 
-const createPublisher = (channelId: string): Publisher => {
-  const peer = createPeer(channelId);
-  const subscribers = new Map<string, PublisherSubscriber>();
+  private onOpen(id: string) {
+    console.log(`My peer ID is: ${id}`);
+    if (this.isServer) {
+      this.setupServerPeer();
+    }
+  }
 
-  const handleConnection = (conn: DataConnection): void => {
+  private onConnection(conn: DataConnection) {
+    this.setupConnection(conn);
+  }
+
+  private onError(err: Error) {
+    console.error('PeerJS error:', err);
+  }
+
+  private setupConnection(conn: DataConnection) {
+    const clientId = conn.peer;
+    this.connections.set(clientId, conn);
+    this.clientIds.push(clientId);
+
     conn.on('open', () => {
-      subscribers.set(conn.peer, {
-        connection: conn,
-        send: (update: Update) => conn.send(update),
-      });
-      console.log(`Subscriber connected: ${conn.peer}`);
+      console.log('Connection opened with:', clientId);
+      if (this.isServer) {
+        this.broadcastClientList();
+      }
     });
 
-    conn.on('data', (data) => {
-      console.log('Received action from subscriber:', data);
-      handleAction(data as Action);
+    conn.on('data', (data: unknown) => {
+      this.handleMessage(data as Message);
     });
 
     conn.on('close', () => {
-      subscribers.delete(conn.peer);
-      console.log(`Subscriber disconnected: ${conn.peer}`);
+      console.log('Connection closed with:', clientId);
+      this.connections.delete(clientId);
+      this.clientIds = this.clientIds.filter(id => id !== clientId);
+      if (this.isServer) {
+        this.broadcastClientList();
+      }
     });
-  };
+  }
 
-  const handleAction = (action: Action): void => {
-    console.log('Processing action:', action);
-    const update: Update = {
-      type: 'storeUpdate',
-      payload: {
-        /* updated store data */
-      },
-    };
-    publish(update);
-  };
+  connect(peerId: string) {
+    const conn = this.peer.connect(peerId);
+    this.setupConnection(conn);
+  }
 
-  const publish = (update: Update): void => {
-    for (const [, subscriber] of subscribers) {
-      subscriber.send(update);
-    }
-  };
-
-  const disconnect = (): void => {
-    peer.disconnect();
-    subscribers.clear();
-  };
-
-  peer.on('connection', handleConnection);
-
-  return {
-    peer,
-    subscribers,
-    publish,
-    disconnect,
-    id: channelId,
-  };
-};
-
-const createSubscriber = (subscriberId: string): Subscriber => {
-  const peer = createPeer(subscriberId);
-  let publisher: DataConnection | null = null;
-
-  const handleUpdate = (update: Update): void => {
-    console.log('Processing update:', update);
-  };
-
-  const subscribe = (channelId: string): void => {
-    publisher = peer.connect(channelId);
-
-    publisher.on('open', () => {
-      console.log('Connected to publisher');
+  sendMessage(type: string, payload: any) {
+    this.connections.forEach(conn => {
+      conn.send({ type, payload });
     });
+  }
 
-    publisher.on('data', (update) => {
-      console.log('Received update from publisher:', update);
-      handleUpdate(update as Update);
-    });
+  onMessage(type: string, handler: (payload: any) => void) {
+    this.messageHandlers.set(type, handler);
+  }
 
-    publisher.on('close', () => {
-      console.log('Disconnected from publisher');
-      publisher = null;
-    });
-  };
-
-  const dispatchAction = (action: Action): void => {
-    if (publisher) {
-      publisher.send(action);
+  private handleMessage(message: Message) {
+    const handler = this.messageHandlers.get(message.type);
+    if (handler) {
+      handler(message.payload);
     } else {
-      console.error('Not connected to a publisher');
+      console.warn('No handler for message type:', message.type);
     }
-  };
+  }
 
-  const unsubscribe = (): void => {
-    if (publisher) {
-      publisher.close();
-    }
-    peer.disconnect();
-  };
+  disconnect() {
+    this.connections.forEach(conn => conn.close());
+    this.connections = new Map();
+    this.clientIds = [];
+    this.peer.disconnect();
+  }
 
-  return {
-    peer,
-    publisher,
-    subscribe,
-    dispatchAction,
-    unsubscribe,
-    id: subscriberId,
-  };
-};
+  get peerId() {
+    return this.peer.id;
+  }
 
-export { createPublisher, createSubscriber };
+  private setupServerPeer() {
+    this.isServer = true;
+  }
+
+  private broadcastClientList() {
+    this.sendMessage('clientList', this.clientIds);
+  }
+
+  becomeServer() {
+    this.isServer = true;
+    this.setupServerPeer();
+    this.broadcastClientList();
+  }
+}
+
+export function createPeerNetwork(id?: string): PeerNetwork {
+  return new PeerNetwork(id);
+}
