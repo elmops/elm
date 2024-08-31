@@ -21,9 +21,5 @@ export function useTimerState() {
     requestAnimationFrame(updateTimer);
   }
 
-  function broadcastTimerState() {
-    // Implementation depends on how you want to handle this
-  }
-
-  return { timerState, formattedTime, updateTimer, broadcastTimerState };
+  return { timerState, formattedTime, updateTimer };
 }

@@ -1,50 +1,70 @@
 import type { Ref } from 'vue';
 import type { PeerNetwork } from '../services/peerNetwork';
+import { logger } from '../utils/logger';
 
 export function useNetworkHandlers(
-  peerNetwork: PeerNetwork,
+  peerNetwork: Ref<PeerNetwork | null>,
   timerState: Ref<{ startTime: number; elapsedTime: number; running: boolean }>,
-  broadcastTimerState: () => void,
-  roomId: Ref<string>,
+  roomId: Ref<string | undefined>,
   connectedClients: Ref<string[]>
 ) {
+
+  function broadcastTimerState() {
+    logger.log('Broadcasting timer state:', timerState.value);
+    peerNetwork.value?.sendMessage('timerState', timerState.value);
+  }
+
   function playPause() {
-    if (peerNetwork.isServer) {
+    if (peerNetwork.value?.isServer) {
       timerState.value.running = !timerState.value.running;
+
       if (timerState.value.running) {
         timerState.value.startTime = performance.now();
       }
+      
       broadcastTimerState();
     } else {
-      peerNetwork.sendMessage('playPause', null);
+      peerNetwork.value?.sendMessage('playPause', null);
     }
   }
 
   function createRoom() {
-    peerNetwork.becomeServer();
-    peerNetwork.onMessage('playPause', () => {
+    logger.log('Creating room');
+    peerNetwork.value?.becomeServer();
+
+    peerNetwork.value?.onMessage('playPause', () => {
       timerState.value.running = !timerState.value.running;
       if (timerState.value.running) {
         timerState.value.startTime = performance.now();
       }
       broadcastTimerState();
     });
-    peerNetwork.onMessage('clientList', (clients: string[]) => {
+
+    peerNetwork.value?.onMessage('clientList', (clients: string[]) => {
       connectedClients.value = clients;
+    });
+
+    peerNetwork.value?.onMessage('clientConnected', () => {
+      logger.log('Client connected, broadcasting timer state');
+      broadcastTimerState();
     });
   }
 
   function joinRoom() {
     if (roomId.value) {
-      peerNetwork.connect(roomId.value);
-      peerNetwork.onMessage('timerState', (newState) => {
+      peerNetwork.value?.connect(roomId.value);
+
+      peerNetwork.value?.onMessage('timerState', (newState) => {
         timerState.value = newState;
       });
-      peerNetwork.onMessage('clientList', (clients: string[]) => {
+
+      peerNetwork.value?.onMessage('clientList', (clients: string[]) => {
         connectedClients.value = clients;
       });
+    } else {
+      logger.error('Room ID is empty');
     }
   }
 
-  return { playPause, createRoom, joinRoom };
+  return { playPause, createRoom, joinRoom, connectedClients };
 }

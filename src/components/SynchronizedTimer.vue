@@ -9,42 +9,50 @@
     </div>
     <button @click="createRoom">Create Room</button>
     <div id="status">Status: {{ status }}</div>
-    <ConnectedClients v-if="peerNetwork.isServer" :clients="connectedClients" />
+    <ConnectedClients :clients="connectedClients" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import type { Ref } from 'vue';
+import type { PeerNetwork } from '../services/peerNetwork';
 import { createPeerNetwork } from '../services/peerNetwork';
 import { useTimerState } from '../composables/useTimerState';
 import { useNetworkHandlers } from '../composables/useNetworkHandlers';
 import ConnectedClients from '../components/ConnectedClients.vue';
+import { logger } from '../utils/logger';
 
-const peerNetwork = createPeerNetwork();
-const { timerState, formattedTime, updateTimer, broadcastTimerState } = useTimerState();
-const roomId = ref('');
+const { timerState, formattedTime, updateTimer } = useTimerState();
+const peerNetwork = ref<PeerNetwork | null>(null);
+const roomId = ref<string>('');
 const connectedClients = ref<string[]>([]);
 
+onMounted(() => {
+  peerNetwork.value = createPeerNetwork();
+  requestAnimationFrame(updateTimer);
+  peerNetwork.value.peer.on('open', (id: string) => {
+    roomId.value = id;
+  });
+});
+
 const status = computed(() => {
-  if (!peerNetwork || peerNetwork.peerId === undefined) return "Not Connected";
-  return peerNetwork.isServer
-    ? `Host (Room ID: ${peerNetwork.peerId})`
-    : `Client (Connected to: ${roomId.value})`;
+  if (!peerNetwork.value) return "Connecting...";
+  logger.log('peerNetwork', peerNetwork.value.peerId);
+  logger.log('roomId', roomId.value);
+  return peerNetwork.value.isServer
+    ? `Host (Room ID: ${peerNetwork.value.peerId})`
+    : `Client (Connected to: ${roomId.value || 'Not connected'})`;
 });
 
 const { playPause, createRoom, joinRoom } = useNetworkHandlers(
-  peerNetwork,
+  peerNetwork as Ref<PeerNetwork | null>,
   timerState,
-  broadcastTimerState,
   roomId,
   connectedClients
 );
 
-onMounted(() => {
-  requestAnimationFrame(updateTimer);
-});
-
 onUnmounted(() => {
-  peerNetwork.disconnect();
+  peerNetwork.value?.disconnect();
 });
 </script>
