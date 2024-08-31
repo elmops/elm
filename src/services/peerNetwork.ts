@@ -1,5 +1,4 @@
-import Peer from 'peerjs';
-import type { DataConnection } from 'peerjs';
+import Peer, { type DataConnection } from 'peerjs';
 
 type TimerState = {
   startTime: number;
@@ -12,7 +11,7 @@ type Message =
   | { type: 'playPause'; payload: null }
   | { type: 'clientList'; payload: string[] };
 
-class PeerNetwork {
+export class PeerNetwork {
   private peer: Peer;
   private connections: Map<string, DataConnection> = new Map();
   private messageHandlers: Map<string, (payload: any) => void> = new Map();
@@ -21,6 +20,10 @@ class PeerNetwork {
 
   constructor(id?: string) {
     this.peer = id ? new Peer(id) : new Peer();
+    this.setupPeerEventListeners();
+  }
+
+  private setupPeerEventListeners() {
     this.peer.on('open', this.onOpen.bind(this));
     this.peer.on('connection', this.onConnection.bind(this));
     this.peer.on('error', this.onError.bind(this));
@@ -46,25 +49,25 @@ class PeerNetwork {
     this.connections.set(clientId, conn);
     this.clientIds.push(clientId);
 
-    conn.on('open', () => {
-      console.log('Connection opened with:', clientId);
-      if (this.isServer) {
-        this.broadcastClientList();
-      }
-    });
+    conn.on('open', () => this.onConnectionOpen(clientId));
+    conn.on('data', (data: unknown) => this.handleMessage(data as Message));
+    conn.on('close', () => this.onConnectionClose(clientId));
+  }
 
-    conn.on('data', (data: unknown) => {
-      this.handleMessage(data as Message);
-    });
+  private onConnectionOpen(clientId: string) {
+    console.log('Connection opened with:', clientId);
+    if (this.isServer) {
+      this.broadcastClientList();
+    }
+  }
 
-    conn.on('close', () => {
-      console.log('Connection closed with:', clientId);
-      this.connections.delete(clientId);
-      this.clientIds = this.clientIds.filter(id => id !== clientId);
-      if (this.isServer) {
-        this.broadcastClientList();
-      }
-    });
+  private onConnectionClose(clientId: string) {
+    console.log('Connection closed with:', clientId);
+    this.connections.delete(clientId);
+    this.clientIds = this.clientIds.filter(id => id !== clientId);
+    if (this.isServer) {
+      this.broadcastClientList();
+    }
   }
 
   connect(peerId: string) {
@@ -93,7 +96,7 @@ class PeerNetwork {
 
   disconnect() {
     this.connections.forEach(conn => conn.close());
-    this.connections = new Map();
+    this.connections.clear();
     this.clientIds = [];
     this.peer.disconnect();
   }
@@ -102,21 +105,18 @@ class PeerNetwork {
     return this.peer.id;
   }
 
-  private setupServerPeer() {
+  becomeServer() {
     this.isServer = true;
+    this.broadcastClientList();
   }
 
   private broadcastClientList() {
     this.sendMessage('clientList', this.clientIds);
   }
 
-  becomeServer() {
+  private setupServerPeer() {
     this.isServer = true;
-    this.setupServerPeer();
-    this.broadcastClientList();
   }
 }
 
-export function createPeerNetwork(id?: string): PeerNetwork {
-  return new PeerNetwork(id);
-}
+export const createPeerNetwork = (id?: string): PeerNetwork => new PeerNetwork(id);
