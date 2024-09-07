@@ -1,0 +1,13 @@
+modules = ["vue-node-20", "web", "bun-1.1"]
+run = "bun run dev"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "bun run dev"]
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
+exposeLocalhost = true
