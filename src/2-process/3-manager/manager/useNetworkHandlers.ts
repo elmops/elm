@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
-import type { PeerNetwork } from '../services/peerNetwork';
-import { logger } from '../utils/logger';
+import type { PeerNetwork } from '@manager/adapter/peerNetwork';
+import { logger } from '@utility/Logging';
 
 export function useNetworkHandlers(
   peerNetwork: Ref<PeerNetwork | null>,
@@ -8,7 +8,6 @@ export function useNetworkHandlers(
   roomId: Ref<string | undefined>,
   connectedClients: Ref<string[]>
 ) {
-
   function broadcastTimerState() {
     logger.log('Broadcasting timer state:', timerState.value);
     peerNetwork.value?.sendMessage('timerState', timerState.value);
@@ -21,7 +20,7 @@ export function useNetworkHandlers(
       if (timerState.value.running) {
         timerState.value.startTime = performance.now();
       }
-      
+
       broadcastTimerState();
     } else {
       peerNetwork.value?.sendMessage('playPause', null);

@@ -16,12 +16,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { Ref } from 'vue';
-import type { PeerNetwork } from '../services/peerNetwork';
-import { createPeerNetwork } from '../services/peerNetwork';
-import { useTimerState } from '../composables/useTimerState';
-import { useNetworkHandlers } from '../composables/useNetworkHandlers';
-import ConnectedClients from '../components/ConnectedClients.vue';
-import { logger } from '../utils/logger';
+import type { PeerNetwork } from '@manager/adapter/peerNetwork';
+import { createPeerNetwork } from '@manager/adapter/peerNetwork';
+import { useTimerState } from '@manager/manager/useTimerState';
+import { useNetworkHandlers } from '@manager/manager/useNetworkHandlers';
+import ConnectedClients from './ConnectedClients.vue';
+import { logger } from '@utility/Logging';
 
 const { timerState, formattedTime, updateTimer } = useTimerState();
 const peerNetwork = ref<PeerNetwork | null>(null);
@@ -56,3 +56,5 @@ onUnmounted(() => {
   peerNetwork.value?.disconnect();
 });
 </script>
+../2process/1utility/logger
+../2-process/1utility/Logging

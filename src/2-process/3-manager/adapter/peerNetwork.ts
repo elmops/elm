@@ -1,5 +1,5 @@
 import Peer, { type DataConnection } from 'peerjs';
-import { logger } from '../utils/logger';
+import { logger } from '@utility/Logging';
 
 type TimerState = {
   startTime: number;
@@ -51,7 +51,7 @@ export class PeerNetwork {
       conn.close();
       return;
     }
-    
+
     this.connections.set(clientId, conn);
     this.clientIds.push(clientId);
 

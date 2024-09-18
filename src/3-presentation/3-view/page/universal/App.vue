@@ -6,5 +6,5 @@
 </template>
 
 <script setup lang="ts">
-import SynchronizedTimer from './components/SynchronizedTimer.vue';
+import SynchronizedTimer from '@component/composite-component/SynchronizedTimer.vue';
 </script>
