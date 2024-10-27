@@ -1,10 +1,11 @@
 import type { Ref } from 'vue';
 import type { PeerNetwork } from '@manager/adapter/peerNetwork';
 import { logger } from '@utility/Logging';
+import type { TimerState } from '@schema/TimerType';
 
 export function useNetworkHandlers(
   peerNetwork: Ref<PeerNetwork | null>,
-  timerState: Ref<{ startTime: number; elapsedTime: number; running: boolean }>,
+  timerState: Ref<TimerState>,
   roomId: Ref<string | undefined>,
   connectedClients: Ref<string[]>
 ) {

@@ -1,5 +1,11 @@
 # elm
 
+## TODOs
+- go file by file and refactor step by step into the proper file structure
+  - What is peerNework.ts? What does it do?
+
+## Later
+- Refactor the timers to be count up timers
 
 ## Structure
     src/

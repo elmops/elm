@@ -37,9 +37,13 @@ onMounted(() => {
 });
 
 const status = computed(() => {
-  if (!peerNetwork.value) return "Connecting...";
+  if (!peerNetwork.value) {
+    return "Connecting...";
+  }
+
   logger.log('peerNetwork', peerNetwork.value.peerId);
   logger.log('roomId', roomId.value);
+
   return peerNetwork.value.isServer
     ? `Host (Room ID: ${peerNetwork.value.peerId})`
     : `Client (Connected to: ${roomId.value || 'Not connected'})`;
@@ -56,5 +60,3 @@ onUnmounted(() => {
   peerNetwork.value?.disconnect();
 });
 </script>
-../2process/1utility/logger
-../2-process/1utility/Logging

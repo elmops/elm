@@ -1,11 +1,6 @@
 import Peer, { type DataConnection } from 'peerjs';
 import { logger } from '@utility/Logging';
-
-type TimerState = {
-  startTime: number;
-  elapsedTime: number;
-  running: boolean;
-};
+import type { TimerState } from '@schema/TimerType';
 
 type Message =
   | { type: 'timerState'; payload: TimerState }

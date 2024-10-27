@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue';
+import type { TimerState } from '@schema/TimerType';
 
 export function useTimerState() {
-  const timerState = ref({ startTime: 0, elapsedTime: 0, running: false });
+  const timerState = ref<TimerState>({ startTime: 0, elapsedTime: 0, running: false });
   const lastUpdateTime = ref(0);
 
   const formattedTime = computed(() => {
@@ -9,6 +10,7 @@ export function useTimerState() {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
+    
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   });
 
