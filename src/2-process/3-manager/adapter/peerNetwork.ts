@@ -9,8 +9,10 @@ type Message =
   | { type: 'clientConnected'; payload: null };
 
 export class PeerNetwork {
+
   private connections: Map<string, DataConnection> = new Map();
   private messageHandlers: Map<string, (payload: any) => void> = new Map();
+  
   public peer: Peer;
   public isServer = false;
   public clientIds: string[] = [];
