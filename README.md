@@ -7,6 +7,155 @@
 ## Later
 - Refactor the timers to be count up timers
 
+
+
+
+## Schema
+
+Context
+  Type
+    Nature
+    Agent
+    Organization
+  Sub-Contexts
+
+Agent
+  Subcontext
+    Role
+      Permission
+    Meeting
+      Attendant->Agent
+      Phases
+        Phase->Activity
+
+Activity
+  Duration->Timer
+  Process->Action
+    Voting
+    Fudge
+
+
+Action
+  Context
+  Procedure
+
+
+Permissions
+  Permission->Action
+  Meta-Permission->Action
+    Assign Roles
+    Create Roles
+    ...
+
+Activities
+  Meeting
+  Setup
+  Fudge
+  Voting
+  
+
+
+
+
+
+
+### v2
+
+Context
+  Type
+  Subcontexts->Context[]
+
+
+
+Agent->Context(Type=Agent)
+  Roles->Permission[]
+
+Permission
+  Context
+  Action
+
+
+
+Meeting->Context(Type=Organization)
+  Attendants->Agent[]
+  Phases->Activity[]
+
+
+
+Action
+  Context->[Nature, Agent[]]
+  Process->Action[] | Transform
+
+Activity->Action  # this is an action in Context(Type=Organization)
+  Duration->Timer
+
+
+
+
+
+## Data
+ContextType
+  Nature->[Space, Time]
+  Agent
+  Organization
+
+Action
+  Vote
+  Time
+
+Meta-Action
+  Configure Context
+  Assign Roles
+  Create Roles
+
+Activity
+  Meeting
+  Setup
+  Fudge
+  Voting
+
+
+
+
+
+
+
+
+
+### backup
+
+Agent
+  Role
+    Permission->Action
+    Meta-Permission->Action
+      Assign Roles
+      Create Roles
+      ...
+Activity
+  Duration->Timer
+  Process->Action
+    Voting
+    Fudge
+Meeting
+  Attendant->Agent
+  Phases
+    Phase->Activity
+Action
+  Context
+  Procedure
+
+Activities
+  Meeting
+  Setup
+  Fudge
+  Voting
+  
+
+
+
+
+
+
 ## Structure
     src/
       data/
