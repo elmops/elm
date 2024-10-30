@@ -1,10 +1,9 @@
 import { ref, computed } from 'vue';
-import type { TimerState } from '@schema/TimerType';
+import type { TimerType } from '@schema/TimerType';
 
 export function useTimerState() {
-  const timerState = ref<TimerState>({ startTime: 0, elapsedTime: 0, running: false });
+  const timerState = ref<TimerType>({ startTime: 0, elapsedTime: 0, running: false });
   const lastUpdateTime = ref(0);
-
   const formattedTime = computed(() => {
     const totalSeconds = Math.floor(timerState.value.elapsedTime / 1000);
     const hours = Math.floor(totalSeconds / 3600);

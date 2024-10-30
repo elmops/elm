@@ -1,9 +1,9 @@
 import Peer, { type DataConnection } from 'peerjs';
 import { logger } from '@utility/Logging';
-import type { TimerState } from '@schema/TimerType';
+import type { TimerType } from '@schema/TimerType';
 
 type Message =
-  | { type: 'timerState'; payload: TimerState }
+  | { type: 'timerState'; payload: TimerType }
   | { type: 'playPause'; payload: null }
   | { type: 'clientList'; payload: string[] }
   | { type: 'clientConnected'; payload: null };

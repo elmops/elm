@@ -62,7 +62,7 @@ Activities
 ### v2
 
 Context
-  Type
+  ContextType
   Subcontexts->Context[]
 
 
@@ -83,7 +83,7 @@ Meeting->Context(Type=Organization)
 
 
 Action
-  Context->[Nature, Agent[]]
+  Context->[Nature, Agent[], ?Organization]
   Process->Action[] | Transform
 
 Activity->Action  # this is an action in Context(Type=Organization)
@@ -323,3 +323,6 @@ Activities
             CardStyles.scss
             DropdownStyles.scss
             ToggleStyles.scss
+
+
+- Quantify the level of complexity
