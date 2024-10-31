@@ -15,20 +15,22 @@
 
 I'm building a simple set of types for a Meeting facilitation software.
 
+Transform = PureFunction
+
+type TimePool: number  // milliseconds
+
 Agent
   name: string
   roles: Role[]
   speakingTimeQuota: TimePool
 
-type TimePool: number  // milliseconds
+type Action = Action[] | Transform
 
 Role
   context: MeetingPhase[]
   permissions: Action[]
 
-type Action = Action[] | Transform
 
-Transform = PureFunction
 
 Meeting
   participants: Agent[]
