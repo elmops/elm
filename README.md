@@ -12,6 +12,94 @@
 
 ## Schema
 
+
+I'm building a simple set of types for a Meeting facilitation software.
+
+Agent
+  name: string
+  roles: Role[]
+  speakingTimeQuota: TimePool
+
+type TimePool: number  // milliseconds
+
+Role
+  context: MeetingPhase[]
+  permissions: Action[]
+
+type Action = Action[] | Transform
+
+Transform = PureFunction
+
+Meeting
+  participants: Agent[]
+  phases: MeetingPhase[]
+  duration: TimePool
+
+
+MeetingPhase
+  executionProcedure: Action[]
+  roles: Roles[]  // For example in round robin, one person is speaker, others are listeners
+  duration: TimePool
+
+// countdown
+interface Timer extends Action {
+  timeQuota: TimePool
+  // more practical implementation details later
+}
+
+Vote
+  agent: Agent
+  proposal: Proposal
+
+Proposal
+  form: Role[]
+  content: Action
+  people: Action
+
+interface Form {
+  role: Role  // The role assigned to participants in that phase
+  duration: TimePool
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Context
   Type
     Nature
