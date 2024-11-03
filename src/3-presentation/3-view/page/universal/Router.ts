@@ -43,7 +43,7 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _, next) => {
   document.title = (to.meta?.title as string) || 'Meeting App'
   next()
 })

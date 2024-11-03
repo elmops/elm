@@ -65,7 +65,6 @@ import ConnectedClients from '@component/composite-component/ConnectedClients.vu
 import { logger } from '@utility/Logging';
 import { useRouter } from 'vue-router';
 import {
-  FwbCard,
   FwbButton,
   FwbInput,
   FwbHeading,
