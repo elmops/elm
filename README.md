@@ -26,25 +26,31 @@ Agent
 
 type Action = Action[] | Transform
 
-Role
-  context: MeetingPhase[]
-  permissions: Action[]
-
-
-
 Meeting
   participants: Agent[]
   phases: MeetingPhase[]
   duration: TimePool
 
+Role
+  permissions: Action[]
+
+GlobalRole = Role & {
+  type: "global"
+}
+
+MeetingRole = Role & {
+  type: "meeting"
+  context: MeetingPhase[]
+}
+
 
 MeetingPhase
   executionProcedure: Action[]
-  roles: Roles[]  // For example in round robin, one person is speaker, others are listeners
+  roles: MeetingRole[]  // For example in round robin, one person is speaker, others are listeners
   duration: TimePool
 
 // countdown
-interface Timer extends Action {
+type Timer = Action & {
   timeQuota: TimePool
   // more practical implementation details later
 }
@@ -62,6 +68,9 @@ interface Form {
   role: Role  // The role assigned to participants in that phase
   duration: TimePool
 }
+
+
+// Set up meeting room
 
 
 
@@ -243,7 +252,13 @@ Activities
 
 
 
+# Server
+- Router
+- Contoller
 
+# Pinia
+- Actions
+- 
 
 
 ## Structure

@@ -1,10 +1,9 @@
 <template>
-  <div>
-    <h1>WebRTC Synchronized Timer</h1>
-    <SynchronizedTimer />
+  <div class="container mx-auto p-4">
+    <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
-import SynchronizedTimer from '@component/composite-component/SynchronizedTimer.vue';
+// Remove SynchronizedTimer import since we'll handle timing in the Meeting view
 </script>
