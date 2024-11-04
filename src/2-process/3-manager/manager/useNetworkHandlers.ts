@@ -1,7 +1,11 @@
 import type { Ref } from 'vue';
-import type { PeerNetwork } from '@manager/adapter/peerNetwork';
-import { logger } from '@utility/Logging';
-import type { TimerType } from '@schema/TimerType';
+
+import type { TimerType } from 'src/1-data/1-schema/TimerType';
+
+import { logger } from 'src/2-process/1-utility/Logging';
+
+import type { PeerNetwork } from 'src/2-process/3-manager/adapter/peerNetwork';
+
 
 export function useNetworkHandlers(
   peerNetwork: Ref<PeerNetwork | null>,

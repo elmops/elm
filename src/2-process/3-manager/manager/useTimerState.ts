@@ -1,5 +1,7 @@
 import { ref, computed } from 'vue';
-import type { TimerType } from '@schema/TimerType';
+
+import type { TimerType } from 'src/1-data/1-schema/TimerType';
+
 
 export function useTimerState() {
   const timerState = ref<TimerType>({ startTime: 0, elapsedTime: 0, running: false });

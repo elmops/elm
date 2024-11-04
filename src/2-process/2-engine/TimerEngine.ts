@@ -1,5 +1,5 @@
 // utils/timerController.ts
-import type { TimerStore } from '@model/TimerModel'
+import type { TimerStore } from 'src/1-data/2-model/TimerModel'
 
 interface TimerControllerOptions {
   readonly store: TimerStore

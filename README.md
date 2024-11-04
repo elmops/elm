@@ -20,6 +20,7 @@ Transform = PureFunction
 type TimePool: number  // milliseconds
 
 Agent
+  id: string
   name: string
   roles: Role[]
   speakingTimeQuota: TimePool
@@ -252,15 +253,6 @@ Activities
 
 
 
-# Server
-- Router
-- Contoller
-
-# Pinia
-- Actions
-- 
-
-
 ## Structure
     src/
       data/
@@ -431,3 +423,13 @@ Activities
 
 
 - Quantify the level of complexity
+
+
+Now we're going to change the participants to list the connected clients, including the host
+- In order to do that we need to create a person for the host, and give them executor privileges. 
+- Then the executor has permission to control the server.
+- The join room needs a name field.
+
+
+1. Initialize Local Pinia Store
+2. Create person

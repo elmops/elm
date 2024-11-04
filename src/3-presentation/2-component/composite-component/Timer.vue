@@ -6,8 +6,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useTimerState } from '@manager/manager/useTimerState';
+import { onMounted } from 'vue';
+import { useTimerState } from 'src/2-process/3-manager/manager/useTimerState';
 
 const { timerState, formattedTime, updateTimer } = useTimerState();
 
@@ -16,9 +16,9 @@ onMounted(() => {
 });
 
 function playPause() {
-  timerState.running = !timerState.running;
-  if (timerState.running) {
-    timerState.startTime = performance.now();
+  timerState.value.running = !timerState.value.running;
+  if (timerState.value.running) {
+    timerState.value.startTime = performance.now();
   }
 }
 </script>

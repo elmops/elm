@@ -1,10 +1,6 @@
 // stores/timerStore.ts
 import { defineStore } from 'pinia';
-import type { 
-  TimerStoreState, 
-  TimerStoreActions,
-  TimerStore
-} from '@model/TimerModel';
+import type { TimerStoreState } from 'src/1-data/2-model/TimerModel.ts';
 
 const initialState: TimerStoreState = () => ({
   displayTime: 0,
@@ -16,8 +12,9 @@ export const useTimerStore = defineStore('timer', {
   state: initialState,
   actions: {
     updateDisplay(time: number): void {
-      const hasSecondChanged = Math.floor(time / 1000) !== Math.floor(this.displayTime / 1000);
-      
+      const hasSecondChanged =
+        Math.floor(time / 1000) !== Math.floor(this.displayTime / 1000);
+
       if (hasSecondChanged) {
         this.displayTime = time;
       }

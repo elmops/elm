@@ -1,154 +1,3 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import {
-  FwbButton,
-  FwbInput,
-  FwbToggle,
-  FwbHeading,
-  FwbAlert,
-  FwbBadge,
-  FwbA,
-} from 'flowbite-vue';
-import {
-  Trash2,
-  UserPlus,
-  Clock,
-  AlarmClockPlus,
-  AlarmClock,
-  Users,
-  ArrowLeft,
-} from 'lucide-vue-next';
-
-interface Phase {
-  name: string;
-  duration: number;
-  isAdminTime: boolean;
-}
-
-interface Participant {
-  name: string;
-}
-
-interface MeetingTemplate {
-  name: string;
-  phases: Phase[];
-}
-
-const defaultTemplate: MeetingTemplate = {
-  name: 'Default Meeting',
-  phases: [
-    { name: 'Welcome', duration: 5, isAdminTime: true },
-    { name: 'Check-ins', duration: 10, isAdminTime: false },
-    { name: 'Main Discussion', duration: 40, isAdminTime: false },
-    { name: 'Closing', duration: 5, isAdminTime: true },
-  ],
-};
-
-// Reactive state
-const template = ref<MeetingTemplate>(defaultTemplate);
-const participants = ref<Participant[]>([]);
-
-// Computed properties
-const totalTime = computed(() => {
-  return template.value.phases.reduce((sum, phase) => sum + phase.duration, 0);
-});
-
-const personTime = computed(() => {
-  const adminTime = template.value.phases
-    .filter((phase) => phase.isAdminTime)
-    .reduce((sum, phase) => sum + phase.duration, 0);
-  const totalPersonTime = totalTime.value - adminTime;
-  return participants.value.length > 0
-    ? totalPersonTime / participants.value.length
-    : 0;
-});
-
-// Methods
-const addPhase = () => {
-  const newPhase: Phase = {
-    name: 'New Phase',
-    duration: 0,
-    isAdminTime: false,
-  };
-  template.value.phases.push(newPhase);
-};
-
-const removePhase = (index: number) => {
-  template.value.phases.splice(index, 1);
-};
-
-const updatePhaseName = (index: number, name: string) => {
-  template.value.phases[index].name = name;
-};
-
-const updatePhaseDuration = (index: number, duration: number) => {
-  if (index < template.value.phases.length) {
-    template.value.phases[index].duration = Math.max(0, duration);
-  }
-};
-
-const addParticipant = () => {
-  participants.value.push({
-    name: `Participant ${participants.value.length + 1}`,
-  });
-};
-
-const removeParticipant = (index: number) => {
-  participants.value.splice(index, 1);
-};
-
-const updateParticipantName = (index: number, name: string) => {
-  participants.value[index].name = name;
-};
-
-const startMeeting = () => {
-  console.log('Starting meeting with configuration:', {
-    template: template.value,
-    participants: participants.value,
-  });
-};
-
-const saveTemplate = () => {
-  const data = {
-    template: template.value,
-    participants: participants.value,
-  };
-
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${template.value.name.toLowerCase().replace(/\s+/g, '-')}.json`;
-  link.click();
-
-  URL.revokeObjectURL(url);
-};
-
-const loadTemplate = (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target?.result as string);
-      template.value = data.template;
-      participants.value = data.participants;
-    } catch (error) {
-      console.error('Error parsing template file:', error);
-    }
-  };
-  reader.readAsText(file);
-};
-
-const router = useRouter();
-const landingHref = computed(() => router.resolve('/landing').href);
-</script>
-
 <template>
   <div>
     <!-- Back Navigation -->
@@ -245,7 +94,7 @@ const landingHref = computed(() => router.resolve('/landing').href);
             />
           </div>
           <FwbButton color="red" outline size="lg" @click="removePhase(index)">
-            <Trash3 class="h-4 w-4" />
+            <Trash2 class="h-4 w-4" />
           </FwbButton>
 
       </div>
@@ -261,19 +110,13 @@ const landingHref = computed(() => router.resolve('/landing').href);
       <!-- Participants -->
       <div class="space-y-4">
         <div class="flex justify-between items-center">
-          <FwbHeading tag="h3" size="text-lg">Participants</FwbHeading>
-          <FwbButton color="default" size="sm" @click="addParticipant">
-          <template #prefix>
-            <UserPlus class="h-5 w-5" />
-          </template>
-            <span class="whitespace-nowrap">Add Participant</span>
-          </FwbButton>
+          <FwbHeading tag="h3" size="text-lg">Connected Participants</FwbHeading>
         </div>
         
         <div v-if="participants.length === 0" 
              class="flex flex-col items-center justify-center p-8 border rounded-lg bg-gray-50">
           <Users :stroke-width="1.5" class="h-12 w-12 text-gray-400 mb-2" />
-          <span class="text-gray-500">No participants added yet</span>
+          <span class="text-gray-500">No participants connected</span>
         </div>
         
         <div v-else
@@ -281,21 +124,13 @@ const landingHref = computed(() => router.resolve('/landing').href);
           :key="index"
           class="flex items-center justify-between p-2 gap-4 border rounded-lg bg-white shadow-sm"
         >
-          <FwbInput
-            v-model="participant.name"
-            @update:model-value="updateParticipantName(index, $event)"
-            class="grow"
-            size="sm"
-          />
-            <FwbBadge color="purple">
-              <template #icon>
-                <Clock class="h-4 w-4" />
-              </template>
-              <span class="whitespace-nowrap">&nbsp;{{ personTime.toFixed(1) }} min</span>
-            </FwbBadge>
-            <FwbButton color="red" size="lg" outline @click="removeParticipant(index)">
-              <Trash2 class="h-4 w-4" />
-            </FwbButton>
+          <div class="grow">{{ participant.name }}</div>
+          <FwbBadge color="purple">
+            <template #icon>
+              <Clock class="h-4 w-4" />
+            </template>
+            <span class="whitespace-nowrap">&nbsp;{{ personTime.toFixed(1) }} min</span>
+          </FwbBadge>
         </div>
       </div>
 
@@ -306,3 +141,140 @@ const landingHref = computed(() => router.resolve('/landing').href);
   </div>
 
 </template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  FwbButton,
+  FwbInput,
+  FwbToggle,
+  FwbHeading,
+  FwbAlert,
+  FwbBadge,
+  FwbA,
+} from 'flowbite-vue';
+import {
+  Trash2,
+  Clock,
+  AlarmClockPlus,
+  AlarmClock,
+  Users,
+  ArrowLeft,
+} from 'lucide-vue-next';
+
+interface Phase {
+  name: string;
+  duration: number;
+  isAdminTime: boolean;
+}
+
+interface Participant {
+  id: string;
+  name: string;
+}
+
+interface MeetingTemplate {
+  name: string;
+  phases: Phase[];
+}
+
+const defaultTemplate: MeetingTemplate = {
+  name: 'Default Meeting',
+  phases: [
+    { name: 'Welcome', duration: 5, isAdminTime: true },
+    { name: 'Check-ins', duration: 10, isAdminTime: false },
+    { name: 'Main Discussion', duration: 40, isAdminTime: false },
+    { name: 'Closing', duration: 5, isAdminTime: true },
+  ],
+};
+
+// Reactive state
+const template = ref<MeetingTemplate>(defaultTemplate);
+const participants = ref<Participant[]>([]);
+
+// Computed properties
+const totalTime = computed(() => {
+  return template.value.phases.reduce((sum, phase) => sum + phase.duration, 0);
+});
+
+const personTime = computed(() => {
+  const adminTime = template.value.phases
+    .filter((phase) => phase.isAdminTime)
+    .reduce((sum, phase) => sum + phase.duration, 0);
+  const totalPersonTime = totalTime.value - adminTime;
+  return participants.value.length > 0
+    ? totalPersonTime / participants.value.length
+    : 0;
+});
+
+// Methods
+const addPhase = () => {
+  const newPhase: Phase = {
+    name: 'New Phase',
+    duration: 0,
+    isAdminTime: false,
+  };
+  template.value.phases.push(newPhase);
+};
+
+const removePhase = (index: number) => {
+  template.value.phases.splice(index, 1);
+};
+
+const updatePhaseName = (index: number, name: string) => {
+  template.value.phases[index].name = name;
+};
+
+const updatePhaseDuration = (index: number, duration: number) => {
+  if (index < template.value.phases.length) {
+    template.value.phases[index].duration = Math.max(0, duration);
+  }
+};
+
+const startMeeting = () => {
+  console.log('Starting meeting with configuration:', {
+    template: template.value,
+    participants: participants.value,
+  });
+};
+
+const saveTemplate = () => {
+  const data = {
+    template: template.value,
+    participants: participants.value,
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${template.value.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
+
+const loadTemplate = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target?.result as string);
+      template.value = data.template;
+      participants.value = data.participants;
+    } catch (error) {
+      console.error('Error parsing template file:', error);
+    }
+  };
+  reader.readAsText(file);
+};
+
+const router = useRouter();
+const landingHref = computed(() => router.resolve('/landing').href);
+</script>
