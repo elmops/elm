@@ -134,9 +134,77 @@
         </div>
       </div>
 
-      <FwbButton color="default" class="w-full mt-6" size="lg" @click="startMeeting">
-        Start Meeting
+      <!-- Add loading state to Start Meeting button -->
+      <FwbButton 
+        color="default" 
+        class="w-full mt-6" 
+        size="lg" 
+        @click="startMeeting"
+        :disabled="isConnecting || !template.name || template.phases.length === 0"
+      >
+        <template v-if="isConnecting">
+          <span class="animate-spin mr-2">⌛</span>
+          Starting...
+        </template>
+        <template v-else>
+          Start Meeting
+        </template>
       </FwbButton>
+
+      <!-- Add error alert if needed -->
+      <FwbAlert 
+        v-if="error" 
+        color="red" 
+        class="mt-4"
+        dismissible
+        @dismiss="clearError"
+      >
+        {{ error }}
+      </FwbAlert>
+
+      <!-- Add Meeting ID display after creation -->
+      <div v-if="meetingId" class="mt-4 p-4 bg-gray-50 rounded-lg border">
+        <div class="flex flex-col gap-2">
+          <div class="text-sm text-gray-600">Share this Meeting ID with participants:</div>
+          <div class="flex items-center gap-2">
+            <code class="flex-grow p-2 bg-white rounded border font-mono text-lg">
+              {{ meetingId }}
+            </code>
+            <FwbButton 
+              color="alternative" 
+              size="sm"
+              @click="copyMeetingId"
+              class="whitespace-nowrap"
+            >
+              <template #prefix>
+                <Copy class="h-4 w-4" />
+              </template>
+              Copy ID
+            </FwbButton>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast notifications -->
+      <FwbToast
+        v-if="showSuccessToast"
+        closable
+        type="success"
+        class="fixed bottom-4 right-4"
+        @close="showSuccessToast = false"
+      >
+        Meeting ID copied to clipboard!
+      </FwbToast>
+
+      <FwbToast
+        v-if="showErrorToast"
+        closable
+        type="danger"
+        class="fixed bottom-4 right-4"
+        @close="showErrorToast = false"
+      >
+        Failed to copy meeting ID
+      </FwbToast>
     </div>
   </div>
 
@@ -145,6 +213,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import {
   FwbButton,
   FwbInput,
@@ -153,6 +222,7 @@ import {
   FwbAlert,
   FwbBadge,
   FwbA,
+  FwbToast,
 } from 'flowbite-vue';
 import {
   Trash2,
@@ -161,37 +231,34 @@ import {
   AlarmClock,
   Users,
   ArrowLeft,
+  Copy,
 } from 'lucide-vue-next';
 
-interface Phase {
-  name: string;
-  duration: number;
-  isAdminTime: boolean;
-}
+import { meetingService } from '@/2-process/2-engine/MeetingService';
+import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
+import type {
+  MeetingTemplate,
+  MeetingPhase,
+  MeetingParticipant,
+} from '@/1-data/1-type/MeetingTypes';
+import { useAgentStore } from '@/1-data/3-state/AgentStore';
 
-interface Participant {
-  id: string;
-  name: string;
-}
+const router = useRouter();
+const meetingStore = useMeetingStore();
+const agentStore = useAgentStore();
 
-interface MeetingTemplate {
-  name: string;
-  phases: Phase[];
-}
+// Get reactive state from stores
+const { isConnecting, error, currentMeeting } = storeToRefs(meetingStore);
+const { agent } = storeToRefs(agentStore);
 
-const defaultTemplate: MeetingTemplate = {
-  name: 'Default Meeting',
-  phases: [
-    { name: 'Welcome', duration: 5, isAdminTime: true },
-    { name: 'Check-ins', duration: 10, isAdminTime: false },
-    { name: 'Main Discussion', duration: 40, isAdminTime: false },
-    { name: 'Closing', duration: 5, isAdminTime: true },
-  ],
-};
+// Template state
+const template = ref<MeetingTemplate>({
+  name: '',
+  phases: [],
+});
 
-// Reactive state
-const template = ref<MeetingTemplate>(defaultTemplate);
-const participants = ref<Participant[]>([]);
+// Use participants from the store instead of local state
+const participants = computed(() => currentMeeting.value?.participants || []);
 
 // Computed properties
 const totalTime = computed(() => {
@@ -210,7 +277,7 @@ const personTime = computed(() => {
 
 // Methods
 const addPhase = () => {
-  const newPhase: Phase = {
+  const newPhase: MeetingPhase = {
     name: 'New Phase',
     duration: 0,
     isAdminTime: false,
@@ -232,11 +299,37 @@ const updatePhaseDuration = (index: number, duration: number) => {
   }
 };
 
-const startMeeting = () => {
-  console.log('Starting meeting with configuration:', {
-    template: template.value,
-    participants: participants.value,
-  });
+const startMeeting = async () => {
+  try {
+    // Validate template
+    if (!template.value.name || template.value.phases.length === 0) {
+      meetingStore.setError('Please add a meeting name and at least one phase');
+      return;
+    }
+
+    // Validate user
+    if (!agent.value.name) {
+      meetingStore.setError('Please enter your name before starting a meeting');
+      return;
+    }
+
+    // Start the meeting
+    const id = await meetingService.hostMeeting(template.value);
+    meetingId.value = id;
+
+    // Show success toast
+    showSuccessToast.value = true;
+    setTimeout(() => {
+      showSuccessToast.value = false;
+    }, 3000);
+  } catch (error) {
+    console.error('Failed to start meeting:', error);
+    meetingStore.setError('Failed to create meeting');
+  }
+};
+
+const clearError = () => {
+  meetingStore.setError(null);
 };
 
 const saveTemplate = () => {
@@ -267,7 +360,12 @@ const loadTemplate = (event: Event) => {
     try {
       const data = JSON.parse(e.target?.result as string);
       template.value = data.template;
-      participants.value = data.participants;
+      if (currentMeeting.value) {
+        meetingStore.updateMeeting({
+          ...currentMeeting.value,
+          participants: data.participants,
+        });
+      }
     } catch (error) {
       console.error('Error parsing template file:', error);
     }
@@ -275,6 +373,32 @@ const loadTemplate = (event: Event) => {
   reader.readAsText(file);
 };
 
-const router = useRouter();
+const copyMeetingId = async () => {
+  try {
+    await navigator.clipboard.writeText(meetingId.value);
+    showSuccessToast.value = true;
+    setTimeout(() => {
+      showSuccessToast.value = false;
+    }, 3000);
+  } catch (error) {
+    console.error('Failed to copy meeting ID:', error);
+    showErrorToast.value = true;
+    setTimeout(() => {
+      showErrorToast.value = false;
+    }, 3000);
+  }
+};
+
 const landingHref = computed(() => router.resolve('/landing').href);
+
+// Add reactive ref for meeting ID
+const meetingId = ref<string>('');
+const showSuccessToast = ref(false);
+const showErrorToast = ref(false);
 </script>
+
+<style scoped>
+code {
+  word-break: break-all;
+}
+</style>
