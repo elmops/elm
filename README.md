@@ -1,8 +1,9 @@
 # elm
 
 ## TODOs
+- once a client times out we need to set them as disconnected in the clients list. If a client with the same username (for now) rejoins, we need to restore their data.
 - go file by file and refactor step by step into the proper file structure
-  - What is peerNework.ts? What does it do?
+- Add summaries to modules to describe the purpose of the module for llms
 
 ## Later
 - Refactor the timers to be count up timers
