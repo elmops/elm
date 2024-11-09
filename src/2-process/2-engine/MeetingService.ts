@@ -4,7 +4,7 @@ import type {
   Meeting,
   MeetingTemplate,
   MeetingParticipant,
-} from '@/1-data/1-type/MeetingTypes';
+} from '@/1-data/1-schema/MeetingType';
 import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
 import { logger } from '@/2-process/1-utility/Logging';

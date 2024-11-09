@@ -1,18 +1,18 @@
 // types/timer.ts
-export interface TimerState {
+export type TimerState = {
   displayTime: number;
   isRunning: boolean;
   isPaused: boolean;
-}
+};
 
-export interface TimerActions {
+export type TimerActions = {
   updateDisplay: (time: number) => void;
   start: () => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
   reset: () => void;
-}
+};
 
 export type TimerStore = TimerState & TimerActions;
 

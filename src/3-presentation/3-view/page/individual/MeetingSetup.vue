@@ -240,7 +240,7 @@ import type {
   MeetingTemplate,
   MeetingPhase,
   MeetingParticipant,
-} from '@/1-data/1-type/MeetingTypes';
+} from '@/1-data/1-schema/MeetingType';
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
 
 const router = useRouter();

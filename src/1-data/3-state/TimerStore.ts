@@ -1,49 +1,57 @@
-// stores/timerStore.ts
 import { defineStore } from 'pinia';
-import type { TimerStoreState } from 'src/1-data/2-model/TimerModel.ts';
+import { ref } from 'vue';
+import type { TimerState } from '@/1-data/2-model/TimerModel';
 
-const initialState: TimerStoreState = () => ({
-  displayTime: 0,
-  isRunning: false,
-  isPaused: false,
+export const useTimerStore = defineStore('timer', () => {
+  // State initialized from interface
+  const state = ref<TimerState>({
+    displayTime: 0,
+    isRunning: false,
+    isPaused: false,
+  });
+
+  // Actions
+  function updateDisplay(time: number): void {
+    const hasSecondChanged =
+      Math.floor(time / 1000) !== Math.floor(state.value.displayTime / 1000);
+
+    if (hasSecondChanged) {
+      state.value.displayTime = time;
+    }
+  }
+
+  function start(): void {
+    state.value.isRunning = true;
+    state.value.isPaused = false;
+  }
+
+  function pause(): void {
+    state.value.isPaused = true;
+  }
+
+  function resume(): void {
+    state.value.isPaused = false;
+  }
+
+  function stop(): void {
+    state.value.isRunning = false;
+    state.value.isPaused = false;
+  }
+
+  function reset(): void {
+    state.value.displayTime = 0;
+    stop();
+  }
+
+  return {
+    // State
+    state,
+    // Actions
+    updateDisplay,
+    start,
+    pause,
+    resume,
+    stop,
+    reset,
+  };
 });
-
-export const useTimerStore = defineStore('timer', {
-  state: initialState,
-  actions: {
-    updateDisplay(time: number): void {
-      const hasSecondChanged =
-        Math.floor(time / 1000) !== Math.floor(this.displayTime / 1000);
-
-      if (hasSecondChanged) {
-        this.displayTime = time;
-      }
-    },
-
-    start(): void {
-      this.isRunning = true;
-      this.isPaused = false;
-    },
-
-    pause(): void {
-      this.isPaused = true;
-    },
-
-    resume(): void {
-      this.isPaused = false;
-    },
-
-    stop(): void {
-      this.isRunning = false;
-      this.isPaused = false;
-    },
-
-    reset(): void {
-      this.displayTime = 0;
-      this.stop();
-    },
-  },
-});
-
-// Type-safe way to get store instance type
-export type TimerStoreInstance = ReturnType<typeof useTimerStore>;

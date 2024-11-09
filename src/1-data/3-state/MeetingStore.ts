@@ -4,7 +4,7 @@ import type {
   Meeting,
   MeetingState,
   MeetingTemplate,
-} from '../1-type/MeetingTypes';
+} from '@/1-data/1-schema/MeetingType';
 import { v4 as uuidv4 } from 'uuid';
 
 export const useMeetingStore = defineStore('meeting', () => {

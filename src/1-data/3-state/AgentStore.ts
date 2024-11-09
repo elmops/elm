@@ -1,16 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-
-interface Agent {
-  id: string;
-  name?: string;
-  roles: string[];
-  speakingTimeQuota: number;
-}
+import { v4 as uuidv4 } from 'uuid';
+import type { Agent } from '@/1-data/1-schema/AgentType';
 
 export const useAgentStore = defineStore('agent', () => {
   const agent = ref<Agent>({
-    id: crypto.randomUUID(),
+    id: uuidv4(),
     name: '',
     roles: [],
     speakingTimeQuota: 0,

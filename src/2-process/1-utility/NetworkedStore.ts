@@ -4,6 +4,7 @@ import type {
   AppEvent,
 } from 'src/2-process/1-utility/EventBus';
 
+// Types
 export interface StoreAction<T = unknown> {
   type: string;
   payload: T;
@@ -27,6 +28,7 @@ export interface NetworkedStore<T> {
   subscribe(handler: (update: StoreUpdate<T>) => void): () => void;
 }
 
+// Factory
 export function createNetworkedStore<T extends StateTree>(
   options: NetworkedStoreOptions<T>,
   eventBus: AbstractEventBus,
