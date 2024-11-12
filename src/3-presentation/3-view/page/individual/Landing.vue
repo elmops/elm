@@ -21,7 +21,7 @@
             <FwbButton
               color="default"
               @click="joinRoom"
-              :disabled="!agent.name || !roomId || isConnecting"
+              :disabled="!roomId || isConnecting"
             >
               <template v-if="isConnecting">
                 <span class="animate-spin mr-2">⌛</span>
@@ -37,7 +37,6 @@
             color="alternative"
             class="w-full"
             @click="onCreateMeeting"
-            :disabled="!agent.name"
           >
             Create New Meeting
           </FwbButton>
@@ -46,11 +45,9 @@
 
       <!-- Error Alert -->
       <FwbAlert 
-        v-if="error" 
-        color="red" 
+        v-if="error"
+        type="warning"
         class="mt-4"
-        dismissible
-        @dismiss="clearError"
       >
         {{ error }}
       </FwbAlert>
@@ -63,6 +60,7 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { FwbButton, FwbInput, FwbHeading, FwbAlert } from 'flowbite-vue';
+import { generateName } from '@/2-process/1-utility/NameGenerator';
 
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
 import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
@@ -80,8 +78,7 @@ const roomId = ref<string>('');
 const joinRoom = async () => {
   try {
     if (!agent.value.name) {
-      meetingStore.setError('Please enter your name before joining');
-      return;
+      agentStore.updateName(generateName());
     }
 
     await meetingService.joinMeeting(roomId.value);
@@ -93,13 +90,9 @@ const joinRoom = async () => {
 
 const onCreateMeeting = () => {
   if (!agent.value.name) {
-    meetingStore.setError('Please enter your name before creating a meeting');
-    return;
+    agentStore.updateName(generateName());
   }
-  router.push('/setup');
-};
 
-const clearError = () => {
-  meetingStore.setError(null);
+  router.push('/setup');
 };
 </script>

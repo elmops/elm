@@ -16,7 +16,7 @@
     
     <!-- Template Controls -->
     <div class="flex gap-4 mb-6">
-      <FwbButton color="alternative" size="sm" @click="saveTemplate">
+      <FwbButton color="alternative" size="sm" @click="onSaveTemplate">
         Save Template
       </FwbButton>
       
@@ -29,7 +29,7 @@
           type="file"
           accept="application/json"
           class="hidden"
-          @change="loadTemplate"
+          @change="onLoadTemplate"
         >
       </label>
     </div>
@@ -48,7 +48,7 @@
     <div class="space-y-4">
       <div class="flex justify-between items-center">
         <FwbHeading tag="h3" size="text-lg">Meeting Phases</FwbHeading>
-        <FwbButton color="default" size="sm" @click="addPhase">
+        <FwbButton color="default" size="sm" @click="onAddPhase">
           <template #prefix>
             <AlarmClockPlus class="h-5 w-5" />
           </template>
@@ -69,14 +69,14 @@
       >
                   <FwbInput
           v-model="phase.name"
-          @update:model-value="updatePhaseName(index, $event)"
+          @update:model-value="onUpdatePhaseName(index, $event)"
           class="w-1/3"
           size="sm"
           placeholder="Phase Name"
         />
           <FwbInput
             :model-value="String(phase.duration)"
-            @update:model-value="updatePhaseDuration(index, Number($event))"
+            @update:model-value="onUpdatePhaseDuration(index, Number($event))"
             class="w-20 text-left"
             min="0"
             size="sm"
@@ -139,8 +139,8 @@
         color="default" 
         class="w-full mt-6" 
         size="lg" 
-        @click="startMeeting"
-        :disabled="isConnecting || !template.name || template.phases.length === 0"
+        @click="onStartMeeting"
+        :disabled="isConnecting"
       >
         <template v-if="isConnecting">
           <span class="animate-spin mr-2">⌛</span>
@@ -154,10 +154,8 @@
       <!-- Add error alert if needed -->
       <FwbAlert 
         v-if="error" 
-        color="red" 
+        type="warning" 
         class="mt-4"
-        dismissible
-        @dismiss="clearError"
       >
         {{ error }}
       </FwbAlert>
@@ -239,7 +237,6 @@ import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
 import type {
   MeetingTemplate,
   MeetingPhase,
-  MeetingParticipant,
 } from '@/1-data/1-schema/MeetingType';
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
 
@@ -276,7 +273,7 @@ const personTime = computed(() => {
 });
 
 // Methods
-const addPhase = () => {
+const onAddPhase = () => {
   const newPhase: MeetingPhase = {
     name: 'New Phase',
     duration: 0,
@@ -289,17 +286,17 @@ const removePhase = (index: number) => {
   template.value.phases.splice(index, 1);
 };
 
-const updatePhaseName = (index: number, name: string) => {
+const onUpdatePhaseName = (index: number, name: string) => {
   template.value.phases[index].name = name;
 };
 
-const updatePhaseDuration = (index: number, duration: number) => {
+const onUpdatePhaseDuration = (index: number, duration: number) => {
   if (index < template.value.phases.length) {
     template.value.phases[index].duration = Math.max(0, duration);
   }
 };
 
-const startMeeting = async () => {
+const onStartMeeting = async () => {
   try {
     // Validate template
     if (!template.value.name || template.value.phases.length === 0) {
@@ -312,6 +309,8 @@ const startMeeting = async () => {
       meetingStore.setError('Please enter your name before starting a meeting');
       return;
     }
+
+    meetingStore.setError(null);
 
     // Start the meeting
     const id = await meetingService.hostMeeting(template.value);
@@ -328,11 +327,7 @@ const startMeeting = async () => {
   }
 };
 
-const clearError = () => {
-  meetingStore.setError(null);
-};
-
-const saveTemplate = () => {
+const onSaveTemplate = () => {
   const data = {
     template: template.value,
     participants: participants.value,
@@ -351,7 +346,7 @@ const saveTemplate = () => {
   URL.revokeObjectURL(url);
 };
 
-const loadTemplate = (event: Event) => {
+const onLoadTemplate = (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
 
