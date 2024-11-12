@@ -28,6 +28,27 @@ export interface NetworkedStore<T> {
   subscribe(handler: (update: StoreUpdate<T>) => void): () => void;
 }
 
+// Development mode check
+const isDev = process.env.NODE_ENV === 'development';
+
+const logUpdate = (storeId: string, update: StoreUpdate<any>) => {
+  if (isDev) {
+    console.log(
+      `[Store: ${storeId}] State updated to version ${update.version}:`,
+      update.state
+    );
+  }
+};
+
+const logAction = (storeId: string, action: StoreAction) => {
+  if (isDev) {
+    console.log(
+      `[Store: ${storeId}] Action dispatched: ${action.type}`,
+      action.payload
+    );
+  }
+};
+
 // Factory
 export function createNetworkedStore<T extends StateTree>(
   options: NetworkedStoreOptions<T>,
@@ -60,6 +81,8 @@ export function createNetworkedStore<T extends StateTree>(
     // Server: Handle incoming actions
     eventBus.on('STORE_ACTION', async (event: AppEvent<StoreAction>) => {
       const { type, payload } = event.payload;
+      logAction(options.id, event.payload);
+
       if (options.actions?.[type]) {
         await options.actions[type].call(store, payload);
 
@@ -71,6 +94,7 @@ export function createNetworkedStore<T extends StateTree>(
           version,
         };
 
+        logUpdate(options.id, update);
         eventBus.emit({
           type: 'STORE_UPDATE',
           payload: update,
@@ -88,6 +112,7 @@ export function createNetworkedStore<T extends StateTree>(
       if (update.version > version) {
         version = update.version;
         Object.assign(store.$state, update.state);
+        logUpdate(options.id, update);
         subscribers.forEach((handler) => handler(update));
       }
     });
@@ -100,6 +125,8 @@ export function createNetworkedStore<T extends StateTree>(
     },
 
     async dispatch(action: StoreAction) {
+      logAction(options.id, action);
+
       if (isServer) {
         if (options.actions?.[action.type]) {
           await options.actions[action.type].call(store, action.payload);
