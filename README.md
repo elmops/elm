@@ -11,10 +11,8 @@
 
 
 
-## Schema
+## Draft Schema
 
-
-I'm building a simple set of types for a Meeting facilitation software.
 
 Transform = PureFunction
 
@@ -72,47 +70,8 @@ interface Form {
 }
 
 
-// Set up meeting room
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### backup
 Context
   Type
     Nature
@@ -153,284 +112,165 @@ Activities
   Setup
   Fudge
   Voting
-  
-
-
-
-
-
-
-### v2
-
-Context
-  ContextType
-  Subcontexts->Context[]
-
-
-
-Agent->Context(Type=Agent)
-  Roles->Permission[]
-
-Permission
-  Context
-  Action
-
-
-
-Meeting->Context(Type=Organization)
-  Attendants->Agent[]
-  Phases->Activity[]
-
-
-
-Action
-  Context->[Nature, Agent[], ?Organization]
-  Process->Action[] | Transform
-
-Activity->Action  # this is an action in Context(Type=Organization)
-  Duration->Timer
-
-
-
-
-
-## Data
-ContextType
-  Nature->[Space, Time]
-  Agent
-  Organization
-
-Action
-  Vote
-  Time
-
-Meta-Action
-  Configure Context
-  Assign Roles
-  Create Roles
-
-Activity
-  Meeting
-  Setup
-  Fudge
-  Voting
-
-
-
-
-
-
-
-
-
-### backup
-
-Agent
-  Role
-    Permission->Action
-    Meta-Permission->Action
-      Assign Roles
-      Create Roles
-      ...
-Activity
-  Duration->Timer
-  Process->Action
-    Voting
-    Fudge
-Meeting
-  Attendant->Agent
-  Phases
-    Phase->Activity
-Action
-  Context
-  Procedure
-
-Activities
-  Meeting
-  Setup
-  Fudge
-  Voting
-  
 
 
 
 ## Structure
-    src/
-      data/
-        universal/  # Abstraction
-          UserSchema.ts
-          ProductSchema.ta
-        particular/ # Model
-          UserModel.ts
-          ProductModel.ts
-        individual/ # State
-          UserStore.ts
-          ProductStore.ts
-          PresentationStore.ts
-          Routes.ts
+src/
+  inward/ [Abstract Concepts]
+    universal/ (IU) [Foundational Entities]
+      quantity.ts
+      record.ts
 
-      process/
-        universal/  # Utility
-          Logging.ts
-          Authentication.ts
-          EventBus.ts
-          Router.ts
-          CommunicationService.ts  # Including Data Access
-        particular/ # Engine
-          VotingEngine.ts
-          TimerEngine.ts
-          PresentationEngine.ts
-        individual/ # Manager
-          adapter/
-            WebRTCEventChannel.ts
-            LocalEventChannel.ts
-          manager/
-            OrderProcessManager.ts
-            UserRegistrationManager.ts
-            PresentationManager.ts
+    types/ (IP) [Particular Entities]
+      Agent.ts
+      Meeting.ts
+      Activity.ts
 
-      presentation/
-        universal/  # Pattern
-          layout/
-            SplitPaneLayout.vue
-            TabLayout.vue
-            CardLayout.vue
-            Stack.vue
-            Inset.vue
-            InsetSquished.vue
-            Inline.vue
-          interaction-pattern/
-            Draggable.vue
-            ZoomableCanvas.vue
-            CollaborativeEditor.vue
-          headless-design-system/
-            Button.vue
-            Input.vue
-            Modal.vue
-            Card.vue
-            Dropdown.vue
-            Toggle.vue
-        particular/ # Component
-          custom-component/
-            MeetingControlPanel.vue
-            ActivityProgressBar.vue
-            CustomVotingDisplay.vue
-          composite-component/
-            VotingInterface.vue
-            TimerDisplay.vue
-            ParticipantGrid.vue
-        individual/ # View
-          page/
-            HomePage.vue
-            MeetingRoomPage.vue
-            ActivityDashboardPage.vue
-          style/
-            universal/
-              DefaultTheme.scss
-              DarkTheme.scss
-            particular/
-              ButtonStyle.scss
-              InputStyle.scss
-              ModalStyle.scss
-              CardStyle.scss
-              DropdownStyle.scss
-              ToggleStyle.scss
+    actions/ (II) [Workflow Orchestration]
+      AgentActions.ts
+      MeetingActions.ts
+      ActivityActions.ts
+
+  process/ [mediation]
+    utility/ (MU)
+      Authentication.ts
+      EventBus.ts
+      Logging.ts
+      Permissions.ts
+      main.ts
+
+    engine/ (MP)
+      GoogleAnalyticsAdapter.ts
+      LocalCommunicationAdapter.ts
+      MiroIntegrationAdapter.ts
+      WebRTCAdapter.ts
+      MeetingEngine.ts
+      ActivityEngine.ts
+      VotingEngine.ts
+      TimerEngine.ts
+
+    manager/ (MI) [Service]
+      MeetingManager.ts
+      VotingManager.ts
+      ActivityManager.ts
+      AnalyticsManager.ts
+      IntegrationManager.ts
+
+  presentation/ [Outward]
+    universal/ (OU)
+      App.vue
+      Router.ts
+      style.css
+
+    particular/ (OP)
+      DesignSystem/
+        Button.vue
+        Card.vue
+        Dropdown.vue
+        Input.vue
+        Modal.vue
+        Toggle.vue
+
+      Layouts/
+        CardLayout.vue
+        SplitPaneLayout.vue
+        TabLayout.vue
+
+      InteractionPatterns/
+        CollaborativeEditor.vue
+        DraggableList.vue
+        ZoomableCanvas.vue
+      Components/
+        ActivityProgressBar.vue
+        CustomVotingDisplay.vue
+        MeetingControlPanel.vue
+        ParticipantGrid.vue
+        TimerDisplay.vue
+        VotingInterface.vue
+
+    view/ (OI)
+        ActivityDashboardPage.vue
+        HomePage.vue
+        MeetingRoomPage.vue
 
 
+## Sequence Diagrams
+```
+sequenceDiagram
+    participant u as User
+    participant ui as UI
 
-## old
-    src/
-      inward/ [Abstract Concepts]
-        universal/ (IU) [Foundational Entities]
-          User.ts
-          Meeting.ts
-          Activity.ts
+    u->>ui: loads
+    ui->>ui: +Agent
+    ui->>ui: Agent->genCryptoKeys()
+    create participant c as Client
+    ui->>c: +Client(AgentPublicKey)
+    ui->>ui: show Landing
 
-        particular/ (IP) [State and Behavior]
-          UserStore.ts
-          MeetingStore.ts
-          ActivityStore.ts
-          VotingEngine.ts
-          TimerEngine.ts
+    u->>ui: click create meeting
 
-        individual/ (II) [Workflow Orchestration]
-          MeetingManager.ts
-          VotingManager.ts
-          ActivityManager.ts
+    create participant s as Server
+    ui->>s: +Server(AgentPublicKey)
+    s->>ui: return server address
+    s->>s: set Agent as server admin and meeting executor roles
+    % server now running with nothing connected
 
-      mediation/ [Business Processes]
-        universal/ (MU) [Core Infrastructure]
-          EventBus.ts
-          Logging.ts
-          Authentication.ts
+    c->>s: Client.connect(Server, Agent)
+    s->>c: sends client relevant data stores for that agent's role
 
-        particular/ (MP) [Service Definitions]
-          CommunicationService.ts
-          AnalyticsService.ts
-          IntegrationService.ts
-
-        individual/ (MI) [Service Implementation]
-          WebRTCAdapter.ts
-          LocalCommunicationAdapter.ts
-          GoogleAnalyticsAdapter.ts
-          MiroIntegrationAdapter.ts
-
-      outward/ [User Interactions]
-        universal/ (OU) [Application Framework]
-          App.vue
-          Router.ts
-
-        particular/ (OP) [Refined Interaction Patterns]
-          DesignSystem/
-            Button.vue
-            Input.vue
-            Modal.vue
-            Card.vue
-            Dropdown.vue
-            Toggle.vue
-          InteractionPatterns/
-            DraggableList.vue
-            ZoomableCanvas.vue
-            CollaborativeEditor.vue
-          CompositeComponents/
-            VotingInterface.vue
-            TimerDisplay.vue
-            ParticipantGrid.vue
-          Layouts/
-            SplitPaneLayout.vue
-            TabLayout.vue
-            CardLayout.vue
-
-        individual/ (OI) [Application-Specific Views]
-          Pages/
-            HomePage.vue
-            MeetingRoomPage.vue
-            ActivityDashboardPage.vue
-          CustomComponents/
-            MeetingControlPanel.vue
-            ActivityProgressBar.vue
-            CustomVotingDisplay.vue
-          Themes/
-            DefaultTheme.scss
-            DarkTheme.scss
-            CustomBrandTheme.scss
-          Styles/
-            ButtonStyles.scss
-            InputStyles.scss
-            ModalStyles.scss
-            CardStyles.scss
-            DropdownStyles.scss
-            ToggleStyles.scss
+    ui->>c: add relevant watchers for stores
 
 
-- Quantify the level of complexity
+    ui->>u: show Set up Meeting
+    u->>ui: click Add Phase
+    ui->>ui: onAddPhase()
+    ui->>c: actions.addPhase()
+    c->>s: EventBus.send(addPhase, Agent)
+    s->>s: Permissions.check(addPhase, Agent)
+    s->>s: actions.addPhase()
+    s->>c: updated store with added phase
+    c->>ui: render new store
+    
+% TODO
+% v0.1
+% create a local store to containe internal identity and server and client details
+% Add asymmetrical crypto to internal identity store
+% spin up client immediately on Landing load
+% spin up server when clicking create Meeting, pass internal identity public key
+% update server to expect key and return server address
+% put server details in local store
+% refactor meetingService to use proper one way event delegation (client calls actions through event bus, server runs action and pushes updated store)
+% add permissions to server
+% add actions for existing UI affordances
+% refactor UI to render meeting details from proper store
+% make sure list of connected participants still works properly
 
+% LATER
+%v0.2
+% As a user, I'm setting up the software
+  % I want to load a meeting template, with preconfigured phases
+  % I want it to be easy to set up a meeting with n people
+  % I want to see Overall meeting time, Phase time, and person time
 
-Now we're going to change the participants to list the connected clients, including the host
-- In order to do that we need to create a person for the host, and give them executor privileges. 
-- Then the executor has permission to control the server.
-- The join room needs a name field.
+% Requirements
+  % system needs to know what is total meeting time, and total phase time
+  % which phases are admin time/fudge and which are person time
 
+%v0.3
+% I want to be able to configure meeting phases
 
-1. Initialize Local Pinia Store
-2. Create person
+%v1.0
+% I want to see a meeting screen
+% As an executor, I want to be able to start and stop timers
+
+%v2.0
+  % I want to be able to donate time to others and vice versa
+
+%v3.0
+  % I want to be able to vote on meeting phases
+
+% QUESTIONS
+% What happens when a person runs out of time?
+    % We can donate time to them
+```

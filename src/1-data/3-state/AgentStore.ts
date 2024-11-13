@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { Agent } from '@/1-data/1-schema/AgentType';
 
-import { generateName } from '@/2-process/1-utility/NameGenerator';
+import { generateName } from '@/2-process/2-engine/NameGenerator';
 
 export const useAgentStore = defineStore('agent', () => {
   const agent = ref<Agent>({

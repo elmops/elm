@@ -60,11 +60,12 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { FwbButton, FwbInput, FwbHeading, FwbAlert } from 'flowbite-vue';
-import { generateName } from '@/2-process/1-utility/NameGenerator';
 
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
 import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
-import { meetingService } from '@/2-process/2-engine/MeetingService';
+
+import { generateName } from '@/2-process/2-engine/NameGenerator';
+import { meetingService } from '@/2-process/3-manager/MeetingService';
 
 const router = useRouter();
 const agentStore = useAgentStore();

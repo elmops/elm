@@ -1,13 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Lazy load components for better performance
-const MeetingSetup = () =>
-  import('src/3-presentation/3-view/page/individual/MeetingSetup.vue');
-const Meeting = () =>
-  import('src/3-presentation/3-view/page/individual/Meeting.vue');
-const Landing = () =>
-  import('src/3-presentation/3-view/page/individual/Landing.vue');
-// TODO: move landing to page folder
+const MeetingSetup = () => import('@/3-presentation/3-view/MeetingSetup.vue');
+const Meeting = () => import('@/3-presentation/3-view/Meeting.vue');
+const Landing = () => import('@/3-presentation/3-view/Landing.vue');
 
 const routes = [
   {

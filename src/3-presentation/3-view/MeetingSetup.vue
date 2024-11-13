@@ -232,13 +232,14 @@ import {
   Copy,
 } from 'lucide-vue-next';
 
-import { meetingService } from '@/2-process/2-engine/MeetingService';
-import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
 import type {
   MeetingTemplate,
   MeetingPhase,
 } from '@/1-data/1-schema/MeetingType';
+import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
 import { useAgentStore } from '@/1-data/3-state/AgentStore';
+
+import { meetingService } from '@/2-process/3-manager/MeetingService';
 
 const router = useRouter();
 const meetingStore = useMeetingStore();

@@ -1,6 +1,5 @@
-export type TimerType = {
-  startTime: number;
-  elapsedTime: number;
-  running: boolean;
+export type Timer = {
+  displayTime: number;
+  isRunning: boolean;
+  isPaused: boolean;
 };
-

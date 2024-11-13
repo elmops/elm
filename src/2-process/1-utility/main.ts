@@ -1,12 +1,14 @@
 import { createApp } from 'vue';
-import { createPinia } from 'pinia'
+import { createPinia } from 'pinia';
 
-import App from 'src/3-presentation/3-view/page/universal/App.vue';
-import router from 'src/3-presentation/3-view/page/universal/Router';
 import 'node_modules/flowbite-vue/dist/index.css';
-import 'src/3-presentation/3-view/style/universal/style.css';
 
-const app = createApp(App)
-app.use(createPinia())
-app.use(router)
-app.mount('#app')
+import App from '@/3-presentation/1-universal/App.vue';
+import '@/3-presentation/1-universal/style.css';
+
+import router from '@/3-presentation/2-particular/Router';
+
+const app = createApp(App);
+app.use(createPinia());
+app.use(router);
+app.mount('#app');

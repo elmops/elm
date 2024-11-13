@@ -1,4 +1,3 @@
-// peer-transport.ts
 import Peer, { type DataConnection, type PeerJSOption } from 'peerjs';
 
 import { logger } from '@/2-process/1-utility/Logging';
