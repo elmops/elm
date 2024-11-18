@@ -115,7 +115,7 @@ Activities
 
 
 
-## Structure
+## Example File Structure
 src/
   inward/ [Abstract Concepts]
     universal/ (IU) [Foundational Entities]
@@ -240,7 +240,7 @@ sequenceDiagram
 % spin up server when clicking create Meeting, pass internal identity public key
 % update server to expect key and return server address
 % put server details in local store
-% refactor meetingService to use proper one way event delegation (client calls actions through event bus, server runs action and pushes updated store)
+% refactor meetingManager to use proper one way event delegation (client calls actions through event bus, server runs action and pushes updated store)
 % add permissions to server
 % add actions for existing UI affordances
 % refactor UI to render meeting details from proper store

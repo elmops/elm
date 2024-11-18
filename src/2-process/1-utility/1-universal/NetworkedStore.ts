@@ -2,7 +2,7 @@ import { defineStore, type StateTree } from 'pinia';
 import type {
   AbstractEventBus,
   AppEvent,
-} from 'src/2-process/1-utility/EventBus';
+} from '@/2-process/1-utility/1-universal/EventBus';
 
 // Types
 export interface StoreAction<T = unknown> {

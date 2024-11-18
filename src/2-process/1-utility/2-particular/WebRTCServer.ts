@@ -2,12 +2,12 @@ import {
   createNetworkedStore,
   type NetworkedStore,
   type NetworkedStoreOptions,
-} from '@/2-process/1-utility/NetworkedStore';
+} from '@/2-process/1-utility/1-universal/NetworkedStore';
 
-import { WebRTCTransport } from '@/2-process/2-engine/adapter/WebRTCAdapter';
-import { WebRTCEventBus } from '@/2-process/2-engine/adapter/WebRTCEventBus';
+import { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCTransport';
+import { WebRTCEventBus } from '@/2-process/1-utility/2-particular/WebRTCEventBus';
 
-export class MeetingServer {
+export class WebRTCServer {
   private eventBus: WebRTCEventBus;
   private store: NetworkedStore<any>;
   private connectionId: string;

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
-import type { Agent } from '@/1-data/1-schema/AgentType';
 
-import { generateName } from '@/2-process/2-engine/NameGenerator';
+import type { Agent } from '@/1-data/type/Agent';
+
+import { generateName } from '@/2-process/2-engine/NameEngine';
 
 export const useAgentStore = defineStore('agent', () => {
   const agent = ref<Agent>({

@@ -1,16 +1,16 @@
-import type { TimerStore } from 'src/1-data/2-types/TimerModel';
+import type { TimerStore } from '@/1-data/type/Timer';
 
-interface TimerControllerOptions {
+interface TimerManagerOptions {
   readonly store: TimerStore;
 }
 
-export class TimerController {
+export class TimerManager {
   readonly #store: TimerStore;
   #elapsedTime = 0;
   #lastTimestamp: number | null = null;
   #animationFrameId: number | null = null;
 
-  constructor({ store }: TimerControllerOptions) {
+  constructor({ store }: TimerManagerOptions) {
     this.#store = store;
   }
 

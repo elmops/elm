@@ -1,7 +1,10 @@
 import Peer, { type DataConnection, type PeerJSOption } from 'peerjs';
 
-import { logger } from '@/2-process/1-utility/Logging';
-import type { NetworkTransport } from '@/2-process/1-utility/EventBus';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
+import {
+  type NetworkTransport,
+  ConnectionState,
+} from '@/2-process/1-utility/1-universal/NetworkTransport';
 
 type WebRTCConfig = {
   host?: string;
@@ -35,12 +38,6 @@ class WebRTCConnectionError extends Error {
 
 type MessageHandler = (data: unknown) => void;
 
-enum ConnectionState {
-  DISCONNECTED = 'disconnected',
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-}
-
 const CONSTANTS = {
   DEFAULT_TIMEOUT_MS: 10000,
   RETRY_BASE_DELAY_MS: 1000,
@@ -56,6 +53,7 @@ export class WebRTCTransport implements NetworkTransport {
   private readonly connections: Map<string, DataConnection> = new Map();
   private messageHandler: MessageHandler | null = null;
   private connectPromise: Promise<void> | null = null;
+  // TODO: remove this?
   private readonly isServer: boolean;
   private readonly serverConnectionId?: string;
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;

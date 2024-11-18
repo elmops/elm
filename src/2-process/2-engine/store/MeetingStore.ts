@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { v4 as uuidv4 } from 'uuid';
+
 import type {
   Meeting,
   MeetingState,
   MeetingTemplate,
-} from '@/1-data/1-schema/MeetingType';
-import { v4 as uuidv4 } from 'uuid';
+} from '@/1-data/type/Meeting';
 
 export const useMeetingStore = defineStore('meeting', () => {
   // State

@@ -1,4 +1,4 @@
-import { logger } from 'src/2-process/1-utility/Logging';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
 
 // Event Types with Discriminated Union
 export const EventTypes = {
@@ -43,13 +43,6 @@ export interface EventBus {
     type: EventType,
     handler: (event: AppEvent<T>) => void
   ) => void;
-}
-
-export interface NetworkTransport {
-  readonly send: (data: unknown) => Promise<void>;
-  readonly onMessage: (handler: (data: unknown) => void) => void;
-  readonly connect: () => Promise<void>;
-  readonly disconnect: () => Promise<void>;
 }
 
 /**

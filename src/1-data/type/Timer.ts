@@ -1,7 +1,11 @@
-import type { Timer } from '@/1-data/1-schema/TimerType';
+// State
+export type Timer = {
+  displayTime: number;
+  isRunning: boolean;
+  isPaused: boolean;
+};
 
-// todo: separate actions, get rid of model
-
+// Actions
 export type TimerActions = {
   updateDisplay: (time: number) => void;
   start: () => void;
@@ -11,6 +15,7 @@ export type TimerActions = {
   reset: () => void;
 };
 
+// Store
 export type TimerStore = Timer & TimerActions;
 
 export type TimerStoreState = () => Timer;

@@ -1,9 +1,11 @@
 import {
   AbstractEventBus,
   type AppEvent,
-} from '@/2-process/1-utility/EventBus';
+} from '@/2-process/1-utility/1-universal/EventBus';
 
-import type { WebRTCTransport } from '@/2-process/2-engine/adapter/WebRTCAdapter';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
+
+import type { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCTransport';
 
 export class WebRTCEventBus extends AbstractEventBus {
   public readonly transport: WebRTCTransport;
@@ -15,6 +17,8 @@ export class WebRTCEventBus extends AbstractEventBus {
     this.transport.onMessage((data) => {
       if (this.isValidEvent(data)) {
         super.emit(data);
+      } else {
+        logger.error('Invalid event received:', data);
       }
     });
   }
@@ -32,7 +36,7 @@ export class WebRTCEventBus extends AbstractEventBus {
   override emit<T>(event: AppEvent<T>): void {
     super.emit(event);
     this.transport.send(event).catch((error) => {
-      console.error('Error sending event:', error);
+      logger.error('Error sending event:', error);
     });
   }
 }

@@ -2,15 +2,15 @@ import type {
   Meeting,
   MeetingTemplate,
   MeetingParticipant,
-} from '@/1-data/1-schema/MeetingType';
+} from '@/1-data/type/Meeting';
 
-import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
-import { useAgentStore } from '@/1-data/3-state/AgentStore';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
 
-import { logger } from '@/2-process/1-utility/Logging';
+import { WebRTCServer } from '@/2-process/1-utility/2-particular/WebRTCServer';
+import { WebRTCClient } from '@/2-process/1-utility/2-particular/WebRTCClient';
 
-import { MeetingServer } from '@/2-process/2-engine/MeetingServer';
-import { MeetingClient } from '@/2-process/2-engine/MeetingClient';
+import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
+import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
 
 interface MeetingStoreState {
   currentMeeting: Meeting | null;
@@ -19,9 +19,9 @@ interface MeetingStoreState {
   error: string | null;
 }
 
-export class MeetingService {
-  private server: MeetingServer | null = null;
-  private client: MeetingClient | null = null;
+export class MeetingManager {
+  private server: WebRTCServer | null = null;
+  private client: WebRTCClient | null = null;
   private store = useMeetingStore();
   private agentStore = useAgentStore();
   private cleanupHandler: (() => void) | null = null;
@@ -52,7 +52,7 @@ export class MeetingService {
       const meetingId = meeting.id;
 
       // Initialize the server
-      this.server = new MeetingServer(meetingId, {
+      this.server = new WebRTCServer(meetingId, {
         id: 'meeting',
         state: (): MeetingStoreState => ({
           currentMeeting: meeting,
@@ -109,7 +109,7 @@ export class MeetingService {
       this.store.setConnecting(true);
 
       // Initialize the client
-      this.client = new MeetingClient(meetingId, {
+      this.client = new WebRTCClient(meetingId, {
         id: 'meeting',
         state: (): MeetingStoreState => ({
           currentMeeting: null,
@@ -193,4 +193,4 @@ export class MeetingService {
 }
 
 // Create a singleton instance
-export const meetingService = new MeetingService();
+export const meetingManager = new MeetingManager();

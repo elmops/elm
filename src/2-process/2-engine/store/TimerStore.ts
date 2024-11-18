@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { Timer } from '@/1-data/1-schema/TimerType';
+
+import type { Timer } from '@/1-data/type/Timer';
 
 export const useTimerStore = defineStore('timer', () => {
   // State initialized from interface

@@ -61,11 +61,11 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { FwbButton, FwbInput, FwbHeading, FwbAlert } from 'flowbite-vue';
 
-import { useAgentStore } from '@/1-data/3-state/AgentStore';
-import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
+import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
+import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 
-import { generateName } from '@/2-process/2-engine/NameGenerator';
-import { meetingService } from '@/2-process/3-manager/MeetingService';
+import { generateName } from '@/2-process/2-engine/NameEngine';
+import { meetingManager } from '@/2-process/3-manager/MeetingManager';
 
 const router = useRouter();
 const agentStore = useAgentStore();
@@ -82,7 +82,7 @@ const joinRoom = async () => {
       agentStore.updateName(generateName());
     }
 
-    await meetingService.joinMeeting(roomId.value);
+    await meetingManager.joinMeeting(roomId.value);
     router.push(`/meeting/${roomId.value}`);
   } catch (error) {
     console.error('Failed to join room:', error);

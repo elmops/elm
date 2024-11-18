@@ -232,14 +232,12 @@ import {
   Copy,
 } from 'lucide-vue-next';
 
-import type {
-  MeetingTemplate,
-  MeetingPhase,
-} from '@/1-data/1-schema/MeetingType';
-import { useMeetingStore } from '@/1-data/3-state/MeetingStore';
-import { useAgentStore } from '@/1-data/3-state/AgentStore';
+import type { MeetingTemplate, MeetingPhase } from '@/1-data/type/Meeting';
 
-import { meetingService } from '@/2-process/3-manager/MeetingService';
+import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
+import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
+
+import { meetingManager } from '@/2-process/3-manager/MeetingManager';
 
 const router = useRouter();
 const meetingStore = useMeetingStore();
@@ -314,7 +312,7 @@ const onStartMeeting = async () => {
     meetingStore.setError(null);
 
     // Start the meeting
-    const id = await meetingService.hostMeeting(template.value);
+    const id = await meetingManager.hostMeeting(template.value);
     meetingId.value = id;
 
     // Show success toast
