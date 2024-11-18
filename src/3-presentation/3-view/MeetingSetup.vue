@@ -234,6 +234,8 @@ import {
 
 import type { MeetingTemplate, MeetingPhase } from '@/1-data/type/Meeting';
 
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
+
 import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
 
@@ -321,7 +323,7 @@ const onStartMeeting = async () => {
       showSuccessToast.value = false;
     }, 3000);
   } catch (error) {
-    console.error('Failed to start meeting:', error);
+    logger.error('Failed to start meeting:', error);
     meetingStore.setError('Failed to create meeting');
   }
 };
@@ -361,7 +363,7 @@ const onLoadTemplate = (event: Event) => {
         });
       }
     } catch (error) {
-      console.error('Error parsing template file:', error);
+      logger.error('Error parsing template file:', error);
     }
   };
   reader.readAsText(file);
@@ -375,7 +377,7 @@ const copyMeetingId = async () => {
       showSuccessToast.value = false;
     }, 3000);
   } catch (error) {
-    console.error('Failed to copy meeting ID:', error);
+    logger.error('Failed to copy meeting ID:', error);
     showErrorToast.value = true;
     setTimeout(() => {
       showErrorToast.value = false;

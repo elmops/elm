@@ -113,7 +113,7 @@ export class WebRTCTransport implements NetworkTransport {
     });
 
     this.peer.on('error', (error) => {
-      console.error('Peer error:', error);
+      logger.error('Peer error:', error);
       if (error.type === 'disconnected') {
         this.reconnect();
       }
@@ -136,7 +136,7 @@ export class WebRTCTransport implements NetworkTransport {
     });
 
     conn.on('error', (error) => {
-      console.error('Connection error:', error);
+      logger.error('Connection error:', error);
       this.connections.delete(conn.peer);
     });
   }
