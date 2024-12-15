@@ -10,63 +10,92 @@
 
 
 
-
 ## Draft Schema
 
-
-Transform = PureFunction
-
 type TimePool: number  // milliseconds
+
+TimeSpan = {
+  start: number
+  end: number
+}
+
+RateBoundary = TimeSpan | TimePool | undefined
+
+/**
+ * Capabilities are pure functions.
+ */
+type Capability<Args = any[], Return = any> = (
+  ...args: Args
+) => Promise<Return>
 
 Agent
   id: string
   name: string
-  roles: Role[]
+  assignments: Assignment[]     // Updated to use formal role assignments
   speakingTimeQuota: TimePool
 
-type Action = Action[] | Transform
 
-Meeting
-  participants: Agent[]
-  phases: MeetingPhase[]
-  duration: TimePool
+/*
+ * # Role Ontology
+ * - Capabilities map to actions in our data stores.
+ * - Roles and Assignments are used for permission checking.
+ * - Domains create rate boundaries.
+ * - Meta-Capabilities assign permissions.
+ */
+
+/**
+ * A Domain emerges where rate boundaries in business processes create stable regions
+ * of behavior. The Domain hierarchy reflects nested rate boundaries.
+ */
+Domain
+  displayName: string
+  capabilities: Set<Capability> // Domain-specific capabilities
+  roles: Map<Symbol, Role>      // Roles available in this domain
+  rateBoundary: RateBoundary    // Rate boundaries available in this domain
+  subDomains: Set<Domain>       // Child domains
+  parentDomain?: Domain         // Optional parent domain
 
 Role
-  permissions: Action[]
+  displayName: string
+  capabilities: Set<Capability> // Capabilities granted to this role
 
-GlobalRole = Role & {
-  type: "global"
-}
-
-MeetingRole = Role & {
-  type: "meeting"
-  context: MeetingPhase[]
-}
+Assignment
+  userId: string
+  role: Role
+  domain: Domain                // The domain this assignment is valid in
 
 
-MeetingPhase
-  executionProcedure: Action[]
-  roles: MeetingRole[]  // For example in round robin, one person is speaker, others are listeners
-  duration: TimePool
 
-// countdown
-type Timer = Action & {
-  timeQuota: TimePool
-  // more practical implementation details later
-}
+/* Meta-Capabilities */
+SystemCapabilities
+  ASSIGN_ROLE: Capability
+  REVOKE_ROLE: Capability
+
+
+/* Domains */
+Meeting extends Domain
+  participants: Agent[]
+  phases: MeetingPhase[]
+
+MeetingPhase extends Domain
+
+
+/** Voting */
+VotingPhase extends MeetingPhase
+  proposals: Proposal[]
+  votes: Vote[]
 
 Vote
   agent: Agent
   proposal: Proposal
 
 Proposal
-  form: Role[]
-  content: Action
-  people: Action
+  form: Form
+  content: Capability
+  people: Agent[]
 
-interface Form {
+Form extends MeetingPhase
   role: Role  // The role assigned to participants in that phase
-  duration: TimePool
 }
 
 
@@ -234,8 +263,16 @@ sequenceDiagram
     
 % TODO
 % v0.1
-% create a local store to containe internal identity and server and client details
-% Add asymmetrical crypto to internal identity store
+% DONE: create a local store to containe internal identity and server and client details
+% DONE: Add asymmetrical crypto to internal identity store
+
+
+- Make it so on connection, the a key exchange happens where the server sends its public key to the client, and t- Make it so each action sends a signature using the private key of the identity that is sending the action
+he client sends its public key to the server
+- Make it so the server verifies the signature of the identity that sent the action, and can only run actions if the signature is valid
+
+
+
 % spin up client immediately on Landing load
 % spin up server when clicking create Meeting, pass internal identity public key
 % update server to expect key and return server address

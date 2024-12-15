@@ -32,13 +32,13 @@ export const useIdentityStore = defineStore('identity', () => {
 
   async function createNewIdentity(): Promise<Identity> {
     try {
-      const { publicKey, privateKey } = await generateKeyPair();
+      const keyPair = await generateKeyPair();
       const newIdentity: Identity = {
         id: uuidv4(),
-        publicKey,
-        privateKey,
+        keyPair,
         createdAt: Date.now(),
-        lastUsed: Date.now(),
+        client: null,
+        server: null,
       };
 
       await storage.set(STORAGE_KEY, newIdentity);

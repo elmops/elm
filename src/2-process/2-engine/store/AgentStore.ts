@@ -10,8 +10,6 @@ export const useAgentStore = defineStore('agent', () => {
   const agent = ref<Agent>({
     id: uuidv4(),
     name: generateName(),
-    roles: [],
-    speakingTimeQuota: 0,
   });
 
   const updateName = (name: string) => {

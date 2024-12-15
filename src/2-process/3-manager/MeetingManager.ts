@@ -1,23 +1,18 @@
 import type {
-  Meeting,
   MeetingTemplate,
-  MeetingParticipant,
+  MeetingAction,
+  JoinMeetingPayload,
+  LeaveMeetingPayload,
 } from '@/1-data/type/Meeting';
 
 import { logger } from '@/2-process/1-utility/1-universal/Logging';
+import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureIdentity';
 
 import { WebRTCServer } from '@/2-process/1-utility/2-particular/WebRTCServer';
 import { WebRTCClient } from '@/2-process/1-utility/2-particular/WebRTCClient';
 
 import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
-
-interface MeetingStoreState {
-  currentMeeting: Meeting | null;
-  isHost: boolean;
-  isConnecting: boolean;
-  error: string | null;
-}
 
 export class MeetingManager {
   private server: WebRTCServer | null = null;
@@ -38,130 +33,117 @@ export class MeetingManager {
 
   async hostMeeting(template: MeetingTemplate): Promise<string> {
     try {
-      this.store.setConnecting(true);
+      const identity = secureIdentityManager.getIdentity();
+      if (!identity) throw new Error('Identity not initialized');
 
-      // Create the meeting in the store with host as first participant
+      // Create meeting in store (without connection ID yet)
       const meeting = this.store.createMeeting(template);
-      meeting.participants = [
-        {
-          id: this.agentStore.agent.id,
-          name: this.agentStore.agent.name ?? 'Anonymous',
-          isHost: true,
-        },
-      ];
-      const meetingId = meeting.id;
 
-      // Initialize the server
-      this.server = new WebRTCServer(meetingId, {
-        id: 'meeting',
-        state: (): MeetingStoreState => ({
-          currentMeeting: meeting,
-          isHost: true,
-          isConnecting: false,
-          error: null,
-        }),
-        actions: {
-          updateMeeting: function (
-            this: MeetingStoreState,
-            updatedMeeting: Meeting
-          ) {
-            this.currentMeeting = updatedMeeting;
-          },
-          addParticipant: function (
-            this: MeetingStoreState,
-            participant: MeetingParticipant
-          ) {
-            if (this.currentMeeting) {
-              this.currentMeeting.participants.push(participant);
-            }
-          },
-          removeParticipant: function (
-            this: MeetingStoreState,
-            participantId: string
-          ) {
-            if (this.currentMeeting) {
-              this.currentMeeting.participants =
-                this.currentMeeting.participants.filter(
-                  (p) => p.id !== participantId
-                );
-            }
-          },
-        },
+      // Initialize server with host's identity
+      const publicIdentity = {
+        id: identity.id,
+        publicKey: identity.keyPair.publicKey,
+      };
+
+      this.server = new WebRTCServer(publicIdentity, {
+        id: meeting.id,
+        state: () => ({ meeting }),
       });
 
-      // Start the server
+      // Start the server and get its connection ID
       await this.server.start();
-      logger.log(`Meeting server started with ID: ${meetingId}`);
+      const connectionId = this.server.getConnectionId();
 
-      return meetingId;
+      // Update the meeting with the connection ID
+      const updatedMeeting = {
+        ...meeting,
+        connectionId,
+        participants: [
+          {
+            id: identity.id,
+            name: this.agentStore.agent.name,
+            isHost: true,
+          },
+        ],
+      };
+      this.store.updateMeeting(updatedMeeting);
+
+      // Initialize and connect client to this server
+      this.client = new WebRTCClient(connectionId);
+      await this.client.connect();
+
+      return connectionId; // Return the connection ID for sharing
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to host meeting';
-      this.store.setError(errorMessage);
+      logger.error('Failed to host meeting:', error);
       throw error;
-    } finally {
-      this.store.setConnecting(false);
     }
   }
 
-  async joinMeeting(meetingId: string): Promise<void> {
+  async joinMeeting(connectionId: string): Promise<void> {
     try {
       this.store.setConnecting(true);
 
-      // Initialize the client
-      this.client = new WebRTCClient(meetingId, {
-        id: 'meeting',
-        state: (): MeetingStoreState => ({
-          currentMeeting: null,
-          isHost: false,
-          isConnecting: false,
-          error: null,
-        }),
-      });
+      // Initialize client with the provided connection ID
+      this.client = new WebRTCClient(connectionId);
 
-      // Connect to the meeting
       await this.client.connect();
 
-      // Get the networked store
+      // Wait for initial state sync
       const networkedStore = this.client.getStore();
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Store sync timeout'));
+        }, 10000);
 
-      // Add self as participant
-      await networkedStore.dispatch({
-        type: 'addParticipant',
+        const unsubscribe = networkedStore.subscribe(() => {
+          if (networkedStore.state.meeting) {
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      // Update local store with networked state
+      const { meeting } = networkedStore.state;
+      this.store.updateMeeting(meeting);
+
+      // Dispatch join action
+      const joinAction: MeetingAction = {
+        type: 'meeting/join',
         payload: {
-          id: this.agentStore.agent.id,
-          name: this.agentStore.agent.name,
-          isHost: false,
-        },
-      });
+          participant: {
+            id: this.agentStore.agent.id,
+            name: this.agentStore.agent.name,
+          },
+        } as JoinMeetingPayload,
+      };
 
-      // Subscribe to store updates
-      networkedStore.subscribe((update) => {
-        if (update.state.currentMeeting) {
-          this.store.updateMeeting(update.state.currentMeeting);
-        }
-      });
+      await this.client.dispatch(joinAction);
 
-      logger.log(`Connected to meeting: ${meetingId}`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to join meeting';
-      this.store.setError(errorMessage);
-      throw error;
-    } finally {
       this.store.setConnecting(false);
+    } catch (error) {
+      this.store.setConnecting(false);
+      this.store.setError(
+        error instanceof Error ? error.message : 'Failed to join meeting'
+      );
+      logger.error('Failed to join meeting:', error);
+      throw error;
     }
   }
 
   async leaveMeeting(): Promise<void> {
     try {
       if (this.client) {
-        // Remove self from participants before disconnecting
-        const networkedStore = this.client.getStore();
-        await networkedStore.dispatch({
-          type: 'removeParticipant',
-          payload: this.agentStore.agent.id,
-        });
+        // Dispatch leave action before disconnecting
+        const leaveAction: MeetingAction = {
+          type: 'meeting/leave',
+          payload: {
+            participantId: this.agentStore.agent.id,
+          } as LeaveMeetingPayload,
+        };
+
+        await this.client.dispatch(leaveAction);
         await this.client.disconnect();
         this.client = null;
       }
@@ -171,6 +153,7 @@ export class MeetingManager {
         this.server = null;
       }
 
+      // Clear meeting state
       this.store.clearMeeting();
     } catch (error) {
       const errorMessage =

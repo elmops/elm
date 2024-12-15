@@ -1,53 +1,57 @@
-import { logger } from './Logging';
-
-export interface KeyPair {
-  publicKey: JsonWebKey;
-  privateKey: JsonWebKey;
-}
-
 const ALGORITHM = {
-  name: 'Ed25519',
+  name: 'ECDSA',
+  namedCurve: 'P-256',
+  hash: { name: 'SHA-384' },
 } as const;
 
 const KEY_USAGE: KeyUsage[] = ['sign', 'verify'] as const;
 
-export async function generateKeyPair(): Promise<KeyPair> {
-  try {
-    const keyPair = (await crypto.subtle.generateKey(
-      ALGORITHM,
-      true,
-      KEY_USAGE
-    )) as CryptoKeyPair;
-
-    const publicKey = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
-    const privateKey = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-
-    return { publicKey, privateKey };
-  } catch (error) {
-    logger.error('Failed to generate key pair:', error);
-    throw new Error('Failed to generate cryptographic keys');
-  }
+export async function generateKeyPair(): Promise<CryptoKeyPair> {
+  return (await window.crypto.subtle.generateKey(
+    ALGORITHM,
+    true, // extractable
+    KEY_USAGE
+  )) as CryptoKeyPair;
 }
 
-export async function importPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
-  return crypto.subtle.importKey('jwk', jwk, ALGORITHM, true, ['verify']);
+export async function signData(
+  data: any,
+  privateKey: CryptoKey
+): Promise<string> {
+  // Convert data to bytes
+  const encoder = new TextEncoder();
+  const dataBytes = encoder.encode(JSON.stringify(data));
+
+  // Sign the data
+  const signature = await window.crypto.subtle.sign(
+    ALGORITHM,
+    privateKey,
+    dataBytes
+  );
+
+  // Convert signature to base64 string
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
-export async function importPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
-  return crypto.subtle.importKey('jwk', jwk, ALGORITHM, true, ['sign']);
-}
-
-export async function sign(
-  privateKey: CryptoKey,
-  data: ArrayBuffer
-): Promise<ArrayBuffer> {
-  return crypto.subtle.sign(ALGORITHM, privateKey, data);
-}
-
-export async function verify(
-  publicKey: CryptoKey,
-  signature: ArrayBuffer,
-  data: ArrayBuffer
+export async function verifySignature(
+  data: any,
+  signature: string,
+  publicKey: CryptoKey
 ): Promise<boolean> {
-  return crypto.subtle.verify(ALGORITHM, publicKey, signature, data);
+  // Convert data to bytes
+  const encoder = new TextEncoder();
+  const dataBytes = encoder.encode(JSON.stringify(data));
+
+  // Convert base64 signature back to bytes
+  const signatureBytes = Uint8Array.from(atob(signature), (c) =>
+    c.charCodeAt(0)
+  );
+
+  // Verify the signature
+  return await window.crypto.subtle.verify(
+    ALGORITHM,
+    publicKey,
+    signatureBytes,
+    dataBytes
+  );
 }

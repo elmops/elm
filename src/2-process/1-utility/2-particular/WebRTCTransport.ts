@@ -1,10 +1,16 @@
+// NOTE THIS IMPLEMENTATION IS PROBABLY VERY BROKEN
+
 import Peer, { type DataConnection, type PeerJSOption } from 'peerjs';
 
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
+import { logger } from '../1-universal/Logging';
 import {
   type NetworkTransport,
   ConnectionState,
-} from '@/2-process/1-utility/1-universal/NetworkTransport';
+} from '../../../1-data/type/NetworkTransport';
+import {
+  secureIdentityManager,
+  type SecureIdentity,
+} from '../1-universal/SecureIdentity';
 
 type WebRTCConfig = {
   host?: string;
@@ -48,12 +54,33 @@ const CONSTANTS = {
   ],
 } as const;
 
+interface KeyExchangeMessage {
+  type: 'KEY_EXCHANGE';
+  publicKey: CryptoKey;
+}
+
+function isKeyExchangeMessage(data: unknown): data is KeyExchangeMessage {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'type' in data &&
+    data.type === 'KEY_EXCHANGE' &&
+    'publicKey' in data &&
+    typeof data.publicKey === 'object'
+  );
+}
+
+interface SecureConnection {
+  connection: DataConnection;
+  publicKey: CryptoKey;
+  verified: boolean;
+}
+
 export class WebRTCTransport implements NetworkTransport {
   private readonly peer: Peer;
-  private readonly connections: Map<string, DataConnection> = new Map();
+  private readonly connections: Map<string, SecureConnection> = new Map();
   private messageHandler: MessageHandler | null = null;
   private connectPromise: Promise<void> | null = null;
-  // TODO: remove this?
   private readonly isServer: boolean;
   private readonly serverConnectionId?: string;
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
@@ -120,14 +147,37 @@ export class WebRTCTransport implements NetworkTransport {
     });
   }
 
-  private setupConnection(conn: DataConnection) {
-    this.connections.set(conn.peer, conn);
+  private async setupSecureConnection(conn: DataConnection): Promise<void> {
+    const secureConn: SecureConnection = {
+      connection: conn,
+      publicKey: null as any,
+      verified: false,
+    };
 
-    conn.on('data', (data) => {
+    this.connections.set(conn.peer, secureConn);
+
+    // Handle key exchange
+    if (this.isServer) {
+      await this.handleServerKeyExchange(secureConn);
+    } else {
+      await this.handleClientKeyExchange(secureConn);
+    }
+
+    conn.on('data', async (data) => {
+      if (!secureConn.verified) {
+        logger.error('Received message from unverified connection:', conn.peer);
+        return;
+      }
       this.messageHandler?.(data);
     });
+  }
 
-    // TODO: verify if this works
+  private setupConnection(conn: DataConnection) {
+    this.setupSecureConnection(conn).catch((error) => {
+      logger.error('Failed to setup secure connection:', error);
+      this.connections.delete(conn.peer);
+    });
+
     conn.on('close', () => {
       this.connections.delete(conn.peer);
       if (this.isServer) {
@@ -222,58 +272,36 @@ export class WebRTCTransport implements NetworkTransport {
     this.connectionState = ConnectionState.DISCONNECTED;
     this.connectPromise = null;
     this.messageHandler = null;
-    this.connections.forEach((conn) => conn.close());
+    this.connections.forEach((conn) => conn.connection.close());
     this.connections.clear();
     this.peer.destroy();
   }
 
-  async send(data: unknown, retries = CONSTANTS.MAX_RETRIES): Promise<void> {
-    if (this.connectionState !== ConnectionState.CONNECTED) {
-      await this.connect();
-    }
+  async send(data: unknown): Promise<void> {
+    const identity = secureIdentityManager.getIdentity();
+    if (!identity) throw new Error('Identity not initialized');
 
-    const sendWithRetry = async (attemptCount: number): Promise<void> => {
-      try {
-        if (this.isServer) {
-          let sentCount = 0;
-          this.connections.forEach((conn) => {
-            if (conn.open) {
-              conn.send(data);
-              sentCount++;
-            }
-          });
-          if (sentCount === 0) {
-            throw new WebRTCConnectionError('No open connections available');
-          }
-        } else {
-          if (!this.serverConnectionId) {
-            throw new WebRTCConnectionError(
-              'Server connection ID not configured'
-            );
-          }
-
-          const serverConn = this.connections.get(this.serverConnectionId);
-          if (!serverConn?.open) {
-            throw new WebRTCConnectionError('No connection to server');
-          }
-          serverConn.send(data);
-        }
-      } catch (error) {
-        if (attemptCount > 0) {
-          const backoffDelay =
-            CONSTANTS.RETRY_BASE_DELAY_MS *
-            (CONSTANTS.MAX_RETRIES - attemptCount + 1);
-          logger.warn(
-            `Send failed, retrying in ${backoffDelay}ms. Attempts remaining: ${attemptCount}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-          return sendWithRetry(attemptCount - 1);
-        }
-        throw error;
-      }
+    // TODO: Sign message with identity private key
+    const secureMessage = {
+      payload: data,
+      senderId: identity.id,
+      timestamp: Date.now(),
+      signature: 'placeholder',
     };
 
-    return sendWithRetry(retries);
+    if (this.isServer) {
+      this.connections.forEach((conn) => {
+        if (conn.verified) {
+          conn.connection.send(secureMessage);
+        }
+      });
+    } else if (this.serverConnectionId) {
+      const serverConn = this.connections.get(this.serverConnectionId);
+      if (!serverConn?.verified) {
+        throw new Error('No verified connection to server');
+      }
+      serverConn.connection.send(secureMessage);
+    }
   }
 
   onMessage(handler: (data: unknown) => void): void {
@@ -284,5 +312,65 @@ export class WebRTCTransport implements NetworkTransport {
     options: WebRTCTransportOptions
   ): options is ClientOptions {
     return 'serverConnectionId' in options;
+  }
+
+  private async handleServerKeyExchange(
+    secureConn: SecureConnection
+  ): Promise<void> {
+    const identity = secureIdentityManager.getIdentity();
+    if (!identity) throw new Error('Server identity not initialized');
+
+    // Send server public key
+    const message: KeyExchangeMessage = {
+      type: 'KEY_EXCHANGE',
+      publicKey: identity.keyPair.publicKey,
+    };
+    secureConn.connection.send(message);
+
+    // Wait for client public key
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Key exchange timeout'));
+      }, this.connectionTimeout);
+
+      secureConn.connection.on('data', (data: unknown) => {
+        if (isKeyExchangeMessage(data)) {
+          clearTimeout(timeout);
+          secureConn.publicKey = data.publicKey;
+          secureConn.verified = true;
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async handleClientKeyExchange(
+    secureConn: SecureConnection
+  ): Promise<void> {
+    const identity = secureIdentityManager.getIdentity();
+    if (!identity) throw new Error('Client identity not initialized');
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Key exchange timeout'));
+      }, this.connectionTimeout);
+
+      secureConn.connection.on('data', (data: unknown) => {
+        if (isKeyExchangeMessage(data)) {
+          clearTimeout(timeout);
+          secureConn.publicKey = data.publicKey;
+
+          // Send client public key
+          const message: KeyExchangeMessage = {
+            type: 'KEY_EXCHANGE',
+            publicKey: identity.keyPair.publicKey,
+          };
+          secureConn.connection.send(message);
+
+          secureConn.verified = true;
+          resolve();
+        }
+      });
+    });
   }
 }

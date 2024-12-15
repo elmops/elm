@@ -17,6 +17,7 @@ export interface MeetingParticipant {
 
 export interface Meeting {
   id: string;
+  connectionId?: string;
   template: MeetingTemplate;
   participants: MeetingParticipant[];
   currentPhase: number;
@@ -29,4 +30,47 @@ export interface MeetingState {
   isHost: boolean;
   isConnecting: boolean;
   error: string | null;
+}
+
+// Meeting Action Types
+export type JoinMeetingPayload = {
+  participant: {
+    id: string;
+    name: string;
+  };
+};
+
+export type LeaveMeetingPayload = {
+  participantId: string;
+};
+
+export type UpdatePhasePayload = {
+  phase: number;
+};
+
+export type StartMeetingPayload = {
+  startTime: number;
+};
+
+export type StopMeetingPayload = {
+  endTime: number;
+};
+
+export type MeetingActionType =
+  | 'meeting/join'
+  | 'meeting/leave'
+  | 'meeting/updatePhase'
+  | 'meeting/start'
+  | 'meeting/stop';
+
+export type MeetingActionPayload =
+  | JoinMeetingPayload
+  | LeaveMeetingPayload
+  | UpdatePhasePayload
+  | StartMeetingPayload
+  | StopMeetingPayload;
+
+export interface MeetingAction {
+  type: MeetingActionType;
+  payload: MeetingActionPayload;
 }
