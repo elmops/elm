@@ -1,6 +1,7 @@
 import type { AppEvent, EventMeta, BaseEventMap } from './BaseEvents';
 import type { StoreEventMap } from './StoreEvents';
 import type { SecureEventMap } from './SecureEvents';
+import { logger } from './Logging';
 
 // Type-safe event mapping
 export interface EventMap extends StoreEventMap, SecureEventMap, BaseEventMap {}
@@ -14,6 +15,14 @@ export class AbstractEventBus {
   >();
 
   emit<K extends keyof EventMap>(event: AppEvent<EventMap[K], K>): void {
+    // Log the event
+    logger.log(
+      `🔥[Event] ${event.type}${event.meta?.sender ? ` from ${event.meta.sender}` : ''}${
+        event.meta?.target ? ` to ${event.meta.target}` : ''
+      }`,
+      event.payload
+    );
+
     const handlers = this.handlers.get(event.type);
     handlers?.forEach((handler) => handler(event));
   }
