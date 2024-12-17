@@ -306,6 +306,7 @@ he client sends its public key to the server
 
 %v3.0
   % I want to be able to vote on meeting phases
+  % As an executor, I want to have voting phase guide me on how to run the meeting
 
 % QUESTIONS
 % What happens when a person runs out of time?

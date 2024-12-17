@@ -5,6 +5,7 @@ import type {
   Role,
   Assignment,
 } from '@/1-data/type/Domain';
+import { MeetingCapability } from '@/2-process/2-engine/store/MeetingActions';
 
 export class PermissionManager {
   private domains: Record<Domain['id'], Domain> = {};
@@ -47,6 +48,19 @@ export class PermissionManager {
 
   getRole(id: Role['id']): Role | undefined {
     return this.roles[id];
+  }
+
+  async assignRoleToUser(
+    assignerId: Agent['id'],
+    domain: Domain,
+    userId: Agent['id'],
+    roleId: Role['id']
+  ): Promise<void> {
+    // Check if assigner has permission to assign roles
+    if (!this.isAuthorized(assignerId, SystemCapability.ASSIGN_ROLE)) {
+      throw new Error('Not authorized to assign roles');
+    }
+    await SystemCapability.ASSIGN_ROLE(domain, userId, roleId);
   }
 }
 
@@ -92,13 +106,51 @@ export const SystemCapability = {
 
 export type SystemCapabilities = typeof SystemCapability;
 
+function createMeetingDomain(): Domain {
+  const meetingCapabilities = [
+    MeetingCapability.JOIN_MEETING,
+    MeetingCapability.LEAVE_MEETING,
+    MeetingCapability.UPDATE_PHASE,
+    MeetingCapability.START_MEETING,
+    MeetingCapability.STOP_MEETING,
+  ];
+
+  const meetingExecutorRole: Role = {
+    id: 'meeting-executor',
+    displayName: 'Meeting Executor',
+    capabilities: meetingCapabilities,
+  };
+
+  const meetingParticipantRole: Role = {
+    id: 'meeting-participant',
+    displayName: 'Meeting Participant',
+    capabilities: [
+      MeetingCapability.JOIN_MEETING,
+      MeetingCapability.LEAVE_MEETING,
+    ],
+  };
+
+  return {
+    id: 'meeting',
+    displayName: 'Meeting',
+    capabilities: meetingCapabilities,
+    roles: {
+      'meeting-executor': meetingExecutorRole,
+      'meeting-participant': meetingParticipantRole,
+    },
+    assignments: {},
+    agents: [],
+    subDomains: {},
+  };
+}
+
 export function createSystemDomain(): Domain {
   const systemCapabilities = [
     SystemCapability.ADD_ROLE,
     SystemCapability.ASSIGN_ROLE,
     SystemCapability.REVOKE_ROLE,
     SystemCapability.ADD_SUBDOMAIN,
-  ] as const;
+  ];
 
   const systemAdminRole: Role = {
     id: 'system-admin',
@@ -106,7 +158,7 @@ export function createSystemDomain(): Domain {
     capabilities: systemCapabilities,
   };
 
-  return {
+  const systemDomain: Domain = {
     id: 'system',
     displayName: 'System',
     capabilities: systemCapabilities,
@@ -114,66 +166,14 @@ export function createSystemDomain(): Domain {
     assignments: {},
     agents: [],
     subDomains: {},
-  } as const;
+  };
+
+  // Add meeting domain as a subdomain
+  const meetingDomain = createMeetingDomain();
+  meetingDomain.parentDomain = systemDomain;
+  systemDomain.subDomains.meeting = meetingDomain;
+
+  return systemDomain;
 }
 
 export const permissionManager = new PermissionManager(createSystemDomain());
-// // Old code
-// export class PermissionManager {
-//   private roles: Map<number, Role> = new Map(
-//     Object.values(Roles).map((role) => [role.id, role])
-//   );
-
-//   /**
-//    * Check if an agent has permission in a specific context
-//    */
-//   hasPermission(
-//     agent: Agent,
-//     context: Context,
-//     permission: Permission | number
-//   ): boolean {
-//     return agent.roles.some((roleId) => {
-//       const role = this.roles.get(roleId);
-//       if (!role) return false;
-
-//       // Check if role applies to this context
-//       if ((role.context & context) === 0) return false;
-
-//       // Check if role has all requested permissions
-//       return (role.permissions & permission) === permission;
-//     });
-//   }
-
-//   /**
-//    * Check multiple permissions at once
-//    */
-//   hasPermissions(
-//     agent: Agent,
-//     context: Context,
-//     permissions: Permission[]
-//   ): boolean {
-//     const combinedPermissions = permissions.reduce((acc, p) => acc | p, 0);
-//     return this.hasPermission(agent, context, combinedPermissions);
-//   }
-
-//   /**
-//    * Get all permissions for an agent in a specific context
-//    */
-//   getPermissions(agent: Agent, context: Context): number {
-//     return agent.roles.reduce((acc, roleId) => {
-//       const role = this.roles.get(roleId);
-//       if (!role || (role.context & context) === 0) return acc;
-//       return acc | role.permissions;
-//     }, 0);
-//   }
-
-//   /**
-//    * Get role by ID
-//    */
-//   getRole(roleId: number): Role | undefined {
-//     return this.roles.get(roleId);
-//   }
-// }
-
-// Export singleton instance
-// export const permissionManager = new PermissionManager();

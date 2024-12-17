@@ -5,6 +5,7 @@ import {
 } from '@/2-process/1-utility/1-universal/NetworkedStore';
 import type { SignedMessage } from '@/2-process/1-utility/1-universal/SecureIdentity';
 import type { SecureStoreAction } from '@/2-process/1-utility/1-universal/NetworkedStore';
+import type { DataConnection } from 'peerjs';
 
 import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureIdentity';
 import { WebRTCTransport } from './WebRTCTransport';
@@ -26,6 +27,7 @@ export class WebRTCServer {
   private authorizedClients: Map<string, PublicIdentity> = new Map();
   private clientNonces: Map<string, number> = new Map();
   private readonly connectionId: string;
+  private readonly hostIdentity: PublicIdentity;
 
   constructor(
     hostIdentity: PublicIdentity,
@@ -37,7 +39,7 @@ export class WebRTCServer {
       secure?: boolean;
     }
   ) {
-    // Generate a unique connection ID for this server
+    this.hostIdentity = hostIdentity;
     this.connectionId = uuidv4();
 
     const transport = new WebRTCTransport({
@@ -152,6 +154,121 @@ export class WebRTCServer {
   }
 
   private setupSecureMessageHandling() {
+    // Handle new client connections
+    // Note: We need to access the underlying peer connection events
+    const transport = this.eventBus.transport as any;
+    if (transport.peer && typeof transport.peer.on === 'function') {
+      transport.peer.on('connection', async (conn: DataConnection) => {
+        logger.log('New client connecting:', conn.peer);
+
+        // Initiate key exchange by sending server's public key
+        const identity = secureIdentityManager.getIdentity();
+        if (!identity) {
+          logger.error('Server identity not initialized');
+          return;
+        }
+
+        this.eventBus.emit({
+          type: 'SERVER_KEY_EXCHANGE',
+          payload: {
+            publicKey: identity.keyPair.publicKey,
+          },
+          meta: {
+            timestamp: Date.now(),
+            sender: 'server',
+            target: conn.peer,
+          },
+        });
+      });
+    }
+
+    // Handle client key exchange response
+    this.eventBus.on('CLIENT_KEY_EXCHANGE', async (event) => {
+      const signedKeyExchange = event.payload;
+      const clientId = signedKeyExchange.senderId;
+      const clientPublicKey = signedKeyExchange.payload.publicKey;
+
+      // Verify the key exchange message
+      if (!(await this.verifyClientMessage(signedKeyExchange))) {
+        logger.error('Invalid client key exchange:', clientId);
+        return;
+      }
+
+      // Add to authorized clients
+      this.authorizedClients.set(clientId, {
+        id: clientId,
+        publicKey: clientPublicKey,
+      });
+
+      // Check if this is the host by comparing public keys
+      const isHost = await this.comparePublicKeys(
+        clientPublicKey,
+        this.hostIdentity.publicKey
+      );
+
+      // Get domains
+      const systemDomain = permissionManager.getDomain('system');
+      const meetingDomain = permissionManager.getDomain('meeting');
+      if (!systemDomain || !meetingDomain) {
+        logger.error('Required domains not found');
+        return;
+      }
+
+      try {
+        if (isHost) {
+          // Host gets system-admin and meeting-executor roles
+          await permissionManager.assignRoleToUser(
+            'server',
+            systemDomain,
+            clientId,
+            'system-admin'
+          );
+          await permissionManager.assignRoleToUser(
+            'server',
+            meetingDomain,
+            clientId,
+            'meeting-executor'
+          );
+        }
+        // All clients get meeting-participant role
+        await permissionManager.assignRoleToUser(
+          'server',
+          meetingDomain,
+          clientId,
+          'meeting-participant'
+        );
+
+        // Send success notification
+        this.eventBus.emit<'ERROR'>({
+          type: 'ERROR',
+          payload: {
+            code: 'ROLES_ASSIGNED',
+            message: 'Roles assigned successfully',
+          },
+          meta: {
+            timestamp: Date.now(),
+            sender: 'server',
+            target: clientId,
+          },
+        });
+      } catch (error) {
+        logger.error('Failed to assign roles to client:', error);
+        this.eventBus.emit<'ERROR'>({
+          type: 'ERROR',
+          payload: {
+            code: 'ROLE_ASSIGNMENT_FAILED',
+            message: 'Failed to assign roles',
+          },
+          meta: {
+            timestamp: Date.now(),
+            sender: 'server',
+            target: clientId,
+          },
+        });
+      }
+    });
+
+    // Handle secure store actions
     this.eventBus.on('SECURE_STORE_ACTION', async (event) => {
       const signedAction = event.payload;
 
@@ -163,6 +280,29 @@ export class WebRTCServer {
       const action = signedAction.payload;
       await this.store.dispatch(action);
     });
+  }
+
+  private async comparePublicKeys(
+    key1: CryptoKey,
+    key2: CryptoKey
+  ): Promise<boolean> {
+    // Compare public keys by their exported values
+    try {
+      const exported1 = await crypto.subtle.exportKey('raw', key1);
+      const exported2 = await crypto.subtle.exportKey('raw', key2);
+
+      if (exported1.byteLength !== exported2.byteLength) {
+        return false;
+      }
+
+      const arr1 = new Uint8Array(exported1);
+      const arr2 = new Uint8Array(exported2);
+
+      return arr1.every((val, i) => val === arr2[i]);
+    } catch (error) {
+      logger.error('Error comparing public keys:', error);
+      return false;
+    }
   }
 
   async start(): Promise<void> {

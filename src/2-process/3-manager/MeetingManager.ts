@@ -13,6 +13,7 @@ import { WebRTCClient } from '@/2-process/1-utility/2-particular/WebRTCClient';
 
 import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
+import { createMeetingStoreOptions } from '@/2-process/2-engine/store/MeetingActions';
 
 export class MeetingManager {
   private server: WebRTCServer | null = null;
@@ -45,10 +46,10 @@ export class MeetingManager {
         publicKey: identity.keyPair.publicKey,
       };
 
-      this.server = new WebRTCServer(publicIdentity, {
-        id: meeting.id,
-        state: () => ({ meeting }),
-      });
+      this.server = new WebRTCServer(
+        publicIdentity,
+        createMeetingStoreOptions(meeting)
+      );
 
       // Start the server and get its connection ID
       await this.server.start();
@@ -72,6 +73,7 @@ export class MeetingManager {
       this.client = new WebRTCClient(connectionId);
       await this.client.connect();
 
+      // Server will automatically assign roles after successful connection and key exchange
       return connectionId; // Return the connection ID for sharing
     } catch (error) {
       logger.error('Failed to host meeting:', error);
@@ -108,7 +110,12 @@ export class MeetingManager {
       const { meeting } = networkedStore.state;
       this.store.updateMeeting(meeting);
 
-      // Dispatch join action
+      // Get identity and assign participant role
+      const identity = secureIdentityManager.getIdentity();
+      if (!identity) throw new Error('Identity not initialized');
+
+      // Server will handle role assignment after verifying client's identity
+      // We just need to dispatch the join action
       const joinAction: MeetingAction = {
         type: 'meeting/join',
         payload: {

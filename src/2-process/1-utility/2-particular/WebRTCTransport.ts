@@ -7,10 +7,7 @@ import {
   type NetworkTransport,
   ConnectionState,
 } from '../../../1-data/type/NetworkTransport';
-import {
-  secureIdentityManager,
-  type SecureIdentity,
-} from '../1-universal/SecureIdentity';
+import { secureIdentityManager } from '../1-universal/SecureIdentity';
 
 type WebRTCConfig = {
   host?: string;
