@@ -1,10 +1,23 @@
-import { generateKeyPair, signData } from './Crypto';
+import {
+  generateKeyPair,
+  signData,
+  exportKeyPair,
+  importKeyPair,
+  type ExportedKeyPair,
+} from './Crypto';
 import * as storage from './Storage';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface SecureIdentity {
   id: string;
   keyPair: CryptoKeyPair;
+  nonce: number;
+  createdAt: number;
+}
+
+export interface SerializedSecureIdentity {
+  id: string;
+  keys: ExportedKeyPair;
   nonce: number;
   createdAt: number;
 }
@@ -22,16 +35,23 @@ export class SecureIdentityManager {
   private readonly storageKey = 'secure_identity';
 
   async initialize(): Promise<SecureIdentity> {
-    const stored = await storage.get<SecureIdentity>(this.storageKey);
+    const stored = await storage.get<SerializedSecureIdentity>(this.storageKey);
     if (stored) {
-      this.identity = stored;
-      return stored;
+      const keyPair = await importKeyPair(stored.keys);
+      this.identity = {
+        id: stored.id,
+        keyPair,
+        nonce: stored.nonce,
+        createdAt: stored.createdAt,
+      };
+      return this.identity;
     }
     return this.create();
   }
 
   async create(): Promise<SecureIdentity> {
     const keyPair = await generateKeyPair();
+
     const identity: SecureIdentity = {
       id: uuidv4(),
       keyPair,
@@ -39,7 +59,17 @@ export class SecureIdentityManager {
       createdAt: Date.now(),
     };
 
-    await storage.set(this.storageKey, identity);
+    // Store serialized version
+    const exportedKeys = await exportKeyPair(keyPair);
+
+    const serialized: SerializedSecureIdentity = {
+      id: identity.id,
+      keys: exportedKeys,
+      nonce: identity.nonce,
+      createdAt: identity.createdAt,
+    };
+
+    await storage.set(this.storageKey, serialized);
     this.identity = identity;
     return identity;
   }

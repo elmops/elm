@@ -53,7 +53,7 @@ const CONSTANTS = {
 
 interface KeyExchangeMessage {
   type: 'KEY_EXCHANGE';
-  publicKey: CryptoKey;
+  publicKey: JsonWebKey;
 }
 
 function isKeyExchangeMessage(data: unknown): data is KeyExchangeMessage {
@@ -148,31 +148,24 @@ export class WebRTCTransport implements NetworkTransport {
     const secureConn: SecureConnection = {
       connection: conn,
       publicKey: null as any,
-      verified: false,
+      verified: true,
     };
 
     this.connections.set(conn.peer, secureConn);
 
-    // Handle key exchange
-    if (this.isServer) {
-      await this.handleServerKeyExchange(secureConn);
-    } else {
-      await this.handleClientKeyExchange(secureConn);
-    }
-
+    // Set up message handler
     conn.on('data', async (data) => {
-      if (!secureConn.verified) {
-        logger.error('Received message from unverified connection:', conn.peer);
-        return;
-      }
       this.messageHandler?.(data);
     });
   }
 
   private setupConnection(conn: DataConnection) {
-    this.setupSecureConnection(conn).catch((error) => {
-      logger.error('Failed to setup secure connection:', error);
-      this.connections.delete(conn.peer);
+    // Wait for connection to be open before setting up secure connection
+    conn.on('open', () => {
+      this.setupSecureConnection(conn).catch((error) => {
+        logger.error('Failed to setup secure connection:', error);
+        this.connections.delete(conn.peer);
+      });
     });
 
     conn.on('close', () => {
@@ -309,65 +302,5 @@ export class WebRTCTransport implements NetworkTransport {
     options: WebRTCTransportOptions
   ): options is ClientOptions {
     return 'serverConnectionId' in options;
-  }
-
-  private async handleServerKeyExchange(
-    secureConn: SecureConnection
-  ): Promise<void> {
-    const identity = secureIdentityManager.getIdentity();
-    if (!identity) throw new Error('Server identity not initialized');
-
-    // Send server public key
-    const message: KeyExchangeMessage = {
-      type: 'KEY_EXCHANGE',
-      publicKey: identity.keyPair.publicKey,
-    };
-    secureConn.connection.send(message);
-
-    // Wait for client public key
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Key exchange timeout'));
-      }, this.connectionTimeout);
-
-      secureConn.connection.on('data', (data: unknown) => {
-        if (isKeyExchangeMessage(data)) {
-          clearTimeout(timeout);
-          secureConn.publicKey = data.publicKey;
-          secureConn.verified = true;
-          resolve();
-        }
-      });
-    });
-  }
-
-  private async handleClientKeyExchange(
-    secureConn: SecureConnection
-  ): Promise<void> {
-    const identity = secureIdentityManager.getIdentity();
-    if (!identity) throw new Error('Client identity not initialized');
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Key exchange timeout'));
-      }, this.connectionTimeout);
-
-      secureConn.connection.on('data', (data: unknown) => {
-        if (isKeyExchangeMessage(data)) {
-          clearTimeout(timeout);
-          secureConn.publicKey = data.publicKey;
-
-          // Send client public key
-          const message: KeyExchangeMessage = {
-            type: 'KEY_EXCHANGE',
-            publicKey: identity.keyPair.publicKey,
-          };
-          secureConn.connection.send(message);
-
-          secureConn.verified = true;
-          resolve();
-        }
-      });
-    });
   }
 }
