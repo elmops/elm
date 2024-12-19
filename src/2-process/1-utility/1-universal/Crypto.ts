@@ -100,13 +100,3 @@ export async function verifySignature(
     dataBytes
   );
 }
-
-export async function exportPublicKey(key: CryptoKey): Promise<JsonWebKey> {
-  return await window.crypto.subtle.exportKey('jwk', key);
-}
-
-export async function importPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
-  return await window.crypto.subtle.importKey('jwk', jwk, KEY_PARAMS, true, [
-    'verify',
-  ]);
-}
