@@ -1,4 +1,3 @@
-import type { StoreAction, StoreUpdate } from './NetworkedStore';
 import type { AppEvent } from '@/2-process/1-utility/1-universal/BaseEvents';
 import type {
   StoreAction,
@@ -7,7 +6,7 @@ import type {
 
 export interface StoreEventMap {
   STORE_ACTION: StoreAction;
-  STORE_UPDATE: StoreUpdate<any>;
+  STORE_UPDATE: StoreUpdate;
 }
 
 export type StoreEvent<K extends keyof StoreEventMap> = AppEvent<

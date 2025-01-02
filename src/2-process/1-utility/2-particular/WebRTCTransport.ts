@@ -2,12 +2,12 @@
 
 import Peer, { type DataConnection, type PeerJSOption } from 'peerjs';
 
-import { logger } from '../1-universal/Logging';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
 import {
   type NetworkTransport,
   ConnectionState,
-} from '../../../1-data/type/NetworkTransport';
-import { secureIdentityManager } from '../1-universal/SecureIdentity';
+} from '@/1-data/type/NetworkTransport';
+import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureIdentity';
 
 type WebRTCConfig = {
   host?: string;
@@ -28,6 +28,13 @@ type ClientOptions = {
 };
 
 type WebRTCTransportOptions = ServerOptions | ClientOptions;
+type MessageHandler = (data: unknown) => void;
+
+interface SecureConnection {
+  connection: DataConnection;
+  publicKey: CryptoKey;
+  verified: boolean;
+}
 
 class WebRTCConnectionError extends Error {
   constructor(
@@ -39,8 +46,6 @@ class WebRTCConnectionError extends Error {
   }
 }
 
-type MessageHandler = (data: unknown) => void;
-
 const CONSTANTS = {
   DEFAULT_TIMEOUT_MS: 10000,
   RETRY_BASE_DELAY_MS: 1000,
@@ -50,28 +55,6 @@ const CONSTANTS = {
     { urls: 'stun:global.stun.twilio.com:3478' },
   ],
 } as const;
-
-interface KeyExchangeMessage {
-  type: 'KEY_EXCHANGE';
-  publicKey: JsonWebKey;
-}
-
-function isKeyExchangeMessage(data: unknown): data is KeyExchangeMessage {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'type' in data &&
-    data.type === 'KEY_EXCHANGE' &&
-    'publicKey' in data &&
-    typeof data.publicKey === 'object'
-  );
-}
-
-interface SecureConnection {
-  connection: DataConnection;
-  publicKey: CryptoKey;
-  verified: boolean;
-}
 
 export class WebRTCTransport implements NetworkTransport {
   private readonly peer: Peer;

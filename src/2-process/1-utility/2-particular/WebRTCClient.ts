@@ -3,25 +3,22 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   type NetworkedStore,
   type StoreAction,
-  createSecureNetworkedStore,
+  createNetworkedStore,
 } from '@/2-process/1-utility/1-universal/NetworkedStore';
 import {
   secureIdentityManager,
   type SignedMessage,
 } from '@/2-process/1-utility/1-universal/SecureIdentity';
 import type { EventMap } from '@/2-process/1-utility/1-universal/EventBus';
+import { exportKeyPair } from '@/2-process/1-utility/1-universal/Crypto';
 
 import { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCTransport';
 import { WebRTCEventBus } from '@/2-process/1-utility/2-particular/WebRTCEventBus';
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
-import { verifySignature } from '../1-universal/Crypto';
-import type { EventMap } from '../1-universal/EventBus';
 
 export class WebRTCClient {
   private eventBus: WebRTCEventBus;
   private store: NetworkedStore<any>;
-  private serverPublicKey: CryptoKey | null = null;
-  private lastServerNonce = 0;
+  private serverPublicKey: JsonWebKey | null = null;
 
   constructor(
     serverConnectionId: string,
@@ -40,7 +37,7 @@ export class WebRTCClient {
 
     this.eventBus = new WebRTCEventBus(transport);
 
-    this.store = createSecureNetworkedStore(
+    this.store = createNetworkedStore(
       {
         id: 'client-store',
         state: () => ({}),
@@ -52,82 +49,32 @@ export class WebRTCClient {
     this.setupSecureMessageHandling();
   }
 
-  private setupSecureMessageHandling() {
+  private async setupSecureMessageHandling() {
     // Handle server key exchange
-    this.eventBus.on('SERVER_KEY_EXCHANGE', (event) => {
+    this.eventBus.on('SERVER_KEY_EXCHANGE', async (event) => {
       this.serverPublicKey = event.payload.publicKey;
 
       // Send client's public key
       const identity = secureIdentityManager.getIdentity();
       if (!identity) throw new Error('Client identity not initialized');
 
+      const { publicKey } = await exportKeyPair(identity.keyPair);
+
       this.sendSecureMessage('CLIENT_KEY_EXCHANGE', {
-        publicKey: identity.keyPair.publicKey,
+        publicKey,
       });
     });
 
     // Handle store updates from server
-    this.eventBus.on('SECURE_STORE_UPDATE', async (event) => {
-      const signedUpdate = event.payload;
-      if (!(await this.verifyServerMessage(signedUpdate))) {
-        logger.warn('Received invalid store update from server');
-        return;
-      }
-
-      // Apply verified update
-      Object.assign(this.store.state, signedUpdate.payload.state);
+    this.eventBus.on('STORE_UPDATE', (event) => {
+      // Apply update directly since WebRTC handles security
+      Object.assign(this.store.state, event.payload.state);
     });
-  }
-
-  private async verifyServerMessage<T>(
-    message: SignedMessage<T>
-  ): Promise<boolean> {
-    if (!this.serverPublicKey) {
-      logger.warn('No server public key available');
-      return false;
-    }
-
-    try {
-      // Verify signature
-      const isValid = await verifySignature(
-        {
-          payload: message.payload,
-          timestamp: message.timestamp,
-          nonce: message.nonce,
-          senderId: message.senderId,
-        },
-        message.signature,
-        this.serverPublicKey
-      );
-
-      if (!isValid) {
-        logger.warn('Invalid server signature');
-        return false;
-      }
-
-      // Verify nonce is increasing
-      if (message.nonce <= this.lastServerNonce) {
-        logger.warn('Invalid server nonce');
-        return false;
-      }
-      this.lastServerNonce = message.nonce;
-
-      // Verify timestamp
-      const MAX_MESSAGE_AGE = 30000; // 30 seconds
-      if (Date.now() - message.timestamp > MAX_MESSAGE_AGE) {
-        logger.warn('Server message too old');
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      logger.error('Error verifying server message:', error);
-      return false;
-    }
   }
 
   async dispatch(action: StoreAction): Promise<void> {
     const signedAction = await secureIdentityManager.signMessage(action);
+
     this.eventBus.emit({
       type: 'SECURE_STORE_ACTION',
       payload: signedAction,

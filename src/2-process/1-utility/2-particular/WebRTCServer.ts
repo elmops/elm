@@ -1,5 +1,5 @@
 import {
-  createSecureNetworkedStore,
+  createNetworkedStore,
   type NetworkedStore,
   type NetworkedStoreOptions,
 } from '@/2-process/1-utility/1-universal/NetworkedStore';
@@ -11,14 +11,19 @@ import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureI
 import { WebRTCTransport } from './WebRTCTransport';
 import { WebRTCEventBus } from './WebRTCEventBus';
 import { logger } from '@/2-process/1-utility/1-universal/Logging';
-import { verifySignature } from '@/2-process/1-utility/1-universal/Crypto';
+import {
+  exportKeyPair,
+  importKey,
+  verifySignature,
+  comparePublicKeys,
+} from '@/2-process/1-utility/1-universal/Crypto';
 import { permissionManager } from '@/2-process/1-utility/1-universal/Permissions';
 import type { Capability } from '@/1-data/type/Domain';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface PublicIdentity {
   id: string;
-  publicKey: CryptoKey;
+  publicKey: JsonWebKey;
 }
 
 export class WebRTCServer {
@@ -48,7 +53,7 @@ export class WebRTCServer {
     });
 
     this.eventBus = new WebRTCEventBus(transport);
-    this.store = createSecureNetworkedStore(storeOptions, this.eventBus, true);
+    this.store = createNetworkedStore(storeOptions, this.eventBus, true);
 
     // Authorize the host immediately
     this.authorizedClients.set(hostIdentity.id, hostIdentity);
@@ -75,6 +80,8 @@ export class WebRTCServer {
 
     // Verify the signature
     try {
+      const publicKey = await importKey(clientIdentity.publicKey);
+
       const isValid = await verifySignature(
         {
           payload: message.payload,
@@ -83,7 +90,7 @@ export class WebRTCServer {
           senderId: message.senderId,
         },
         message.signature,
-        clientIdentity.publicKey
+        publicKey
       );
 
       if (!isValid) {
@@ -168,10 +175,12 @@ export class WebRTCServer {
           return;
         }
 
+        const { publicKey } = await exportKeyPair(identity.keyPair);
+
         this.eventBus.emit({
           type: 'SERVER_KEY_EXCHANGE',
           payload: {
-            publicKey: identity.keyPair.publicKey,
+            publicKey,
           },
           meta: {
             timestamp: Date.now(),
@@ -201,7 +210,7 @@ export class WebRTCServer {
       });
 
       // Check if this is the host by comparing public keys
-      const isHost = await this.comparePublicKeys(
+      const isHost = comparePublicKeys(
         clientPublicKey,
         this.hostIdentity.publicKey
       );
@@ -280,46 +289,5 @@ export class WebRTCServer {
       const action = signedAction.payload;
       await this.store.dispatch(action);
     });
-  }
-
-  private async comparePublicKeys(
-    key1: CryptoKey,
-    key2: CryptoKey
-  ): Promise<boolean> {
-    // Compare public keys by their exported values
-    try {
-      const exported1 = await crypto.subtle.exportKey('raw', key1);
-      const exported2 = await crypto.subtle.exportKey('raw', key2);
-
-      if (exported1.byteLength !== exported2.byteLength) {
-        return false;
-      }
-
-      const arr1 = new Uint8Array(exported1);
-      const arr2 = new Uint8Array(exported2);
-
-      return arr1.every((val, i) => val === arr2[i]);
-    } catch (error) {
-      logger.error('Error comparing public keys:', error);
-      return false;
-    }
-  }
-
-  async start(): Promise<void> {
-    const identity = secureIdentityManager.getIdentity();
-    if (!identity) {
-      throw new Error('Server identity not initialized');
-    }
-
-    await this.eventBus.transport.connect();
-  }
-
-  async stop(): Promise<void> {
-    await this.eventBus.transport.disconnect();
-    this.authorizedClients.clear();
-  }
-
-  getStore(): NetworkedStore<any> {
-    return this.store;
   }
 }

@@ -15,9 +15,9 @@ import type { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCT
 
 type ValidEventPayload =
   | StoreAction<unknown>
-  | StoreUpdate<any>
+  | StoreUpdate
   | SignedMessage<StoreAction<unknown>>
-  | SignedMessage<StoreUpdate<any>>
+  | SignedMessage<StoreUpdate>
   | ErrorPayload;
 
 export class WebRTCEventBus extends AbstractEventBus {
