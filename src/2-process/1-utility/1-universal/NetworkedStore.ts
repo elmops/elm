@@ -1,5 +1,7 @@
 import { defineStore, type StateTree } from 'pinia';
 
+import type { Capability } from '@/1-data/type/Domain';
+
 import { logger } from '@/2-process/1-utility/1-universal/Logging';
 import type { AbstractEventBus } from '@/2-process/1-utility/1-universal/EventBus';
 import { secureIdentityManager } from './SecureIdentity';

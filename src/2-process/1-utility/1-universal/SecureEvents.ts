@@ -1,6 +1,9 @@
-import type { SignedMessage } from './SecureIdentity';
-import type { StoreAction, StoreUpdate } from './NetworkedStore';
-import type { AppEvent } from './BaseEvents';
+import type { SignedMessage } from '@/2-process/1-utility/1-universal/SecureIdentity';
+import type {
+StoreAction,
+StoreUpdate,
+} from '@/2-process/1-utility/1-universal/NetworkedStore';
+import type { AppEvent } from '@/2-process/1-utility/1-universal/BaseEvents';
 
 export interface SecureEventMap {
   SECURE_STORE_ACTION: SignedMessage<StoreAction>;

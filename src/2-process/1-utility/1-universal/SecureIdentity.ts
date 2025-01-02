@@ -1,12 +1,12 @@
+import { v4 as uuidv4 } from 'uuid';
 import {
   generateKeyPair,
   signData,
   exportKeyPair,
   importKeyPair,
   type ExportedKeyPair,
-} from './Crypto';
-import * as storage from './Storage';
-import { v4 as uuidv4 } from 'uuid';
+} from '@/2-process/1-utility/1-universal/Crypto';
+import * as storage from '@/2-process/1-utility/1-universal/Storage';
 
 export interface SecureIdentity {
   id: string;

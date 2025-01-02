@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+
 import {
   type NetworkedStore,
   type StoreAction,
@@ -8,6 +9,8 @@ import {
   secureIdentityManager,
   type SignedMessage,
 } from '@/2-process/1-utility/1-universal/SecureIdentity';
+import type { EventMap } from '@/2-process/1-utility/1-universal/EventBus';
+
 import { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCTransport';
 import { WebRTCEventBus } from '@/2-process/1-utility/2-particular/WebRTCEventBus';
 import { logger } from '@/2-process/1-utility/1-universal/Logging';

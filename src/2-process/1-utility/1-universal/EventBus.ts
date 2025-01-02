@@ -1,7 +1,11 @@
-import type { AppEvent, EventMeta, BaseEventMap } from './BaseEvents';
-import type { StoreEventMap } from './StoreEvents';
-import type { SecureEventMap } from './SecureEvents';
-import { logger } from './Logging';
+import type {
+  AppEvent,
+  EventMeta,
+  BaseEventMap,
+} from '@/2-process/1-utility/1-universal/BaseEvents';
+import type { StoreEventMap } from '@/2-process/1-utility/1-universal/StoreEvents';
+import type { SecureEventMap } from '@/2-process/1-utility/1-universal/SecureEvents';
+import { logger } from '@/2-process/1-utility/1-universal/Logging';
 
 // Type-safe event mapping
 export interface EventMap extends StoreEventMap, SecureEventMap, BaseEventMap {}
