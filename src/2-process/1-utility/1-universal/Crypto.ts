@@ -37,6 +37,10 @@ export async function exportKeyPair(
   return { publicKey, privateKey };
 }
 
+export async function exportKey(key: CryptoKey): Promise<JsonWebKey> {
+  return await window.crypto.subtle.exportKey('jwk', key);
+}
+
 export async function importKeyPair(
   exported: ExportedKeyPair
 ): Promise<CryptoKeyPair> {

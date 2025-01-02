@@ -14,6 +14,7 @@ import { WebRTCClient } from '@/2-process/1-utility/2-particular/WebRTCClient';
 import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
 import { createMeetingStoreOptions } from '@/2-process/2-engine/store/MeetingActions';
+import { exportKey } from '@/2-process/1-utility/1-universal/Crypto';
 
 export class MeetingManager {
   private server: WebRTCServer | null = null;
@@ -43,16 +44,15 @@ export class MeetingManager {
       // Initialize server with host's identity
       const publicIdentity = {
         id: identity.id,
-        publicKey: identity.keyPair.publicKey,
+        publicKey: await exportKey(identity.keyPair.publicKey),
       };
 
+      // Start the server and get its connection ID
       this.server = new WebRTCServer(
         publicIdentity,
         createMeetingStoreOptions(meeting)
       );
 
-      // Start the server and get its connection ID
-      await this.server.start();
       const connectionId = this.server.getConnectionId();
 
       // Update the meeting with the connection ID
@@ -156,7 +156,6 @@ export class MeetingManager {
       }
 
       if (this.server) {
-        await this.server.stop();
         this.server = null;
       }
 
