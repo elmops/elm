@@ -10,7 +10,6 @@ import type {
 import type { SignedMessage } from '@/2-process/1-utility/1-universal/SecureIdentity';
 import type { ErrorPayload } from '@/2-process/1-utility/1-universal/BaseEvents';
 
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
 import type { WebRTCTransport } from '@/2-process/1-utility/2-particular/WebRTCTransport';
 
 type ValidEventPayload =
@@ -32,7 +31,7 @@ export class WebRTCEventBus extends AbstractEventBus {
         const event = data as AppEvent<ValidEventPayload, keyof EventMap>;
         super.emit(event);
       } else {
-        logger.error('Invalid event received:', data);
+        console.error('🔥[WebRTCEventBus] Invalid event received:', data);
       }
     });
   }
@@ -54,7 +53,7 @@ export class WebRTCEventBus extends AbstractEventBus {
   ): void {
     super.emit(event);
     this.transport.send(event).catch((error) => {
-      logger.error('Error sending event:', error);
+      console.error('Error sending event:', error);
     });
   }
 }

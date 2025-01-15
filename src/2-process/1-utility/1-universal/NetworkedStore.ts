@@ -2,7 +2,6 @@ import { defineStore, type StateTree } from 'pinia';
 
 import type { Capability } from '@/1-data/type/Domain';
 
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
 import type { AbstractEventBus } from '@/2-process/1-utility/1-universal/EventBus';
 
 // Types
@@ -48,7 +47,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 const logUpdate = (storeId: string, update: StoreUpdate) => {
   if (isDev) {
-    logger.log(
+    console.log(
       `[Store: ${storeId}] State updated to version ${update.version}:`,
       update.state
     );
@@ -57,7 +56,7 @@ const logUpdate = (storeId: string, update: StoreUpdate) => {
 
 const logAction = (storeId: string, action: StoreAction) => {
   if (isDev) {
-    logger.log(
+    console.log(
       `[Store: ${storeId}] Action dispatched: ${action.type}`,
       action.payload
     );

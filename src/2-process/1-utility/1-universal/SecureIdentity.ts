@@ -22,6 +22,11 @@ export interface SerializedSecureIdentity {
   createdAt: number;
 }
 
+export interface PublicIdentity {
+  id: string;
+  publicKey: JsonWebKey;
+}
+
 export interface SignedMessage<T> {
   payload: T;
   timestamp: number;

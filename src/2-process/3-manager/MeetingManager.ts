@@ -5,8 +5,10 @@ import type {
   LeaveMeetingPayload,
 } from '@/1-data/type/Meeting';
 
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
-import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureIdentity';
+import {
+  type PublicIdentity,
+  secureIdentityManager,
+} from '@/2-process/1-utility/1-universal/SecureIdentity';
 
 import { WebRTCServer } from '@/2-process/1-utility/2-particular/WebRTCServer';
 import { WebRTCClient } from '@/2-process/1-utility/2-particular/WebRTCClient';
@@ -24,10 +26,10 @@ export class MeetingManager {
   private cleanupHandler: (() => void) | null = null;
 
   constructor() {
-    // Add window unload handler
+    // Window unload handler
     this.cleanupHandler = () => {
       this.leaveMeeting().catch((error) => {
-        logger.error('Error during cleanup:', error);
+        console.error('Error during cleanup:', error);
       });
     };
     window.addEventListener('beforeunload', this.cleanupHandler);
@@ -38,14 +40,14 @@ export class MeetingManager {
       const identity = secureIdentityManager.getIdentity();
       if (!identity) throw new Error('Identity not initialized');
 
-      // Create meeting in store (without connection ID yet)
-      const meeting = this.store.createMeeting(template);
-
       // Initialize server with host's identity
-      const publicIdentity = {
+      const publicIdentity: PublicIdentity = {
         id: identity.id,
         publicKey: await exportKey(identity.keyPair.publicKey),
       };
+
+      // Create meeting in store (without connection ID yet)
+      const meeting = this.store.createMeeting(template);
 
       // Start the server and get its connection ID
       this.server = new WebRTCServer(
@@ -53,12 +55,12 @@ export class MeetingManager {
         createMeetingStoreOptions(meeting)
       );
 
-      const connectionId = this.server.getConnectionId();
+      const serverConnectionId = this.server.getConnectionId();
 
       // Update the meeting with the connection ID
       const updatedMeeting = {
         ...meeting,
-        connectionId,
+        connectionId: serverConnectionId,
         participants: [
           {
             id: identity.id,
@@ -70,13 +72,14 @@ export class MeetingManager {
       this.store.updateMeeting(updatedMeeting);
 
       // Initialize and connect client to this server
-      this.client = new WebRTCClient(connectionId);
+      this.client = new WebRTCClient(serverConnectionId);
       await this.client.connect();
 
+      console.log('🔥 [MeetingManager] Meeting hosted:', serverConnectionId);
       // Server will automatically assign roles after successful connection and key exchange
-      return connectionId; // Return the connection ID for sharing
+      return serverConnectionId; // Return the connection ID for sharing
     } catch (error) {
-      logger.error('Failed to host meeting:', error);
+      console.error('Failed to host meeting:', error);
       throw error;
     }
   }
@@ -86,9 +89,12 @@ export class MeetingManager {
       this.store.setConnecting(true);
 
       // Initialize client with the provided connection ID
-      this.client = new WebRTCClient(connectionId);
+      if (!this.client) {
+        this.client = new WebRTCClient(connectionId);
 
-      await this.client.connect();
+        console.log('🔥 [MeetingManager] Joining meeting:', connectionId);
+        await this.client.connect();
+      }
 
       // Wait for initial state sync
       const networkedStore = this.client.getStore();
@@ -134,7 +140,7 @@ export class MeetingManager {
       this.store.setError(
         error instanceof Error ? error.message : 'Failed to join meeting'
       );
-      logger.error('Failed to join meeting:', error);
+      console.error('Failed to join meeting:', error);
       throw error;
     }
   }

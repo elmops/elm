@@ -8,11 +8,12 @@ import type {
 import { MeetingCapability } from '@/2-process/2-engine/store/MeetingActions';
 
 export class PermissionManager {
-  private domains: Record<Domain['id'], Domain> = {};
-  private roles: Record<Role['id'], Role> = {};
+  // Non-private for debugging purposes
+  domains: Record<Domain['id'], Domain> = {};
+  roles: Record<Role['id'], Role> = {};
 
-  constructor(systemDomain: Domain) {
-    this.mapDomains(systemDomain);
+  constructor(superadminId: Agent['id']) {
+    this.mapDomains(createSystemDomain(superadminId));
   }
 
   private mapDomains(domain: Domain): void {
@@ -28,16 +29,21 @@ export class PermissionManager {
 
   isAuthorized(userId: Agent['id'], capability: Capability): boolean {
     return Object.values(this.domains).some((domain) => {
+      console.log('🔐[PermissionManager] Checking domain:', domain.id);
       const assignment = domain.assignments[userId];
+      console.log('🔐[PermissionManager] Assignment:', assignment);
       if (assignment) {
         const role = domain.roles[assignment.roleId];
+        console.log('🔐[PermissionManager] Role:', role);
         if (
           role?.capabilities.includes(capability) &&
           domain.capabilities.includes(capability)
         ) {
+          console.log('🔐[PermissionManager] Authorization granted');
           return true;
         }
       }
+      console.log('🔐[PermissionManager] Authorization denied');
       return false;
     });
   }
@@ -60,6 +66,11 @@ export class PermissionManager {
     if (!this.isAuthorized(assignerId, SystemCapability.ASSIGN_ROLE)) {
       throw new Error('Not authorized to assign roles');
     }
+    console.log(
+      '🔐[PermissionManager] Assigning role to user:',
+      userId,
+      roleId
+    );
     await SystemCapability.ASSIGN_ROLE(domain, userId, roleId);
   }
 }
@@ -144,7 +155,7 @@ function createMeetingDomain(): Domain {
   };
 }
 
-export function createSystemDomain(): Domain {
+export function createSystemDomain(superadminId: Agent['id']): Domain {
   const systemCapabilities = [
     SystemCapability.ADD_ROLE,
     SystemCapability.ASSIGN_ROLE,
@@ -158,13 +169,16 @@ export function createSystemDomain(): Domain {
     capabilities: systemCapabilities,
   };
 
+  // Need to bootstrap the system domain with the superadmin
   const systemDomain: Domain = {
     id: 'system',
     displayName: 'System',
     capabilities: systemCapabilities,
     roles: { 'system-admin': systemAdminRole },
-    assignments: {},
-    agents: [],
+    assignments: {
+      [superadminId]: { userId: superadminId, roleId: 'system-admin' },
+    },
+    agents: [superadminId],
     subDomains: {},
   };
 
@@ -175,5 +189,3 @@ export function createSystemDomain(): Domain {
 
   return systemDomain;
 }
-
-export const permissionManager = new PermissionManager(createSystemDomain());

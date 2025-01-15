@@ -3,36 +3,35 @@ import {
   type NetworkedStore,
   type NetworkedStoreOptions,
 } from '@/2-process/1-utility/1-universal/NetworkedStore';
-import type { SignedMessage } from '@/2-process/1-utility/1-universal/SecureIdentity';
+import type {
+  SignedMessage,
+  PublicIdentity,
+} from '@/2-process/1-utility/1-universal/SecureIdentity';
 import type { SecureStoreAction } from '@/2-process/1-utility/1-universal/NetworkedStore';
-import type { DataConnection } from 'peerjs';
 
-import { secureIdentityManager } from '@/2-process/1-utility/1-universal/SecureIdentity';
 import { WebRTCTransport } from './WebRTCTransport';
 import { WebRTCEventBus } from './WebRTCEventBus';
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
+
 import {
-  exportKeyPair,
   importKey,
   verifySignature,
   comparePublicKeys,
 } from '@/2-process/1-utility/1-universal/Crypto';
-import { permissionManager } from '@/2-process/1-utility/1-universal/Permissions';
+import { PermissionManager } from '@/2-process/1-utility/1-universal/Permissions';
 import type { Capability } from '@/1-data/type/Domain';
 import { v4 as uuidv4 } from 'uuid';
 
-export interface PublicIdentity {
-  id: string;
-  publicKey: JsonWebKey;
+interface ClientData extends PublicIdentity {
+  lastNonce: number;
 }
 
 export class WebRTCServer {
   private eventBus: WebRTCEventBus;
   private store: NetworkedStore<any>;
-  private authorizedClients: Map<string, PublicIdentity> = new Map();
-  private clientNonces: Map<string, number> = new Map();
+  private clientRegistry: Map<string, ClientData> = new Map();
   private readonly connectionId: string;
   private readonly hostIdentity: PublicIdentity;
+  private readonly permissionManager: PermissionManager;
 
   constructor(
     hostIdentity: PublicIdentity,
@@ -41,11 +40,11 @@ export class WebRTCServer {
       host?: string;
       port?: number;
       path?: string;
-      secure?: boolean;
     }
   ) {
     this.hostIdentity = hostIdentity;
     this.connectionId = uuidv4();
+    console.info('☁️[WebRTCServer] Server connection ID:', this.connectionId);
 
     const transport = new WebRTCTransport({
       connectionId: this.connectionId,
@@ -55,10 +54,18 @@ export class WebRTCServer {
     this.eventBus = new WebRTCEventBus(transport);
     this.store = createNetworkedStore(storeOptions, this.eventBus, true);
 
-    // Authorize the host immediately
-    this.authorizedClients.set(hostIdentity.id, hostIdentity);
+    // Register the host immediately
+    this.clientRegistry.set(hostIdentity.id, {
+      ...hostIdentity,
+      lastNonce: 0,
+    });
+    console.info(
+      `☁️[WebRTCServer] Host authorized, connection ID: ${this.connectionId}`
+    );
 
-    this.setupSecureMessageHandling();
+    this.permissionManager = new PermissionManager(hostIdentity.id);
+
+    this.setupEventBusEvents();
   }
 
   // Add getter for connection ID
@@ -66,21 +73,18 @@ export class WebRTCServer {
     return this.connectionId;
   }
 
-  private async verifyClientMessage<T>(
+  private async validateClientMessage<T>(
     message: SignedMessage<T>
   ): Promise<boolean> {
-    const clientIdentity = this.authorizedClients.get(message.senderId);
-    if (!clientIdentity) {
-      logger.warn(
-        'Message received from unauthorized client:',
-        message.senderId
-      );
+    const clientData = this.clientRegistry.get(message.senderId);
+    if (!clientData) {
+      console.warn('☁️[WebRTCServer] Unknown client:', message.senderId);
       return false;
     }
 
     // Verify the signature
     try {
-      const publicKey = await importKey(clientIdentity.publicKey);
+      const publicKey = await importKey(clientData.publicKey);
 
       const isValid = await verifySignature(
         {
@@ -94,28 +98,42 @@ export class WebRTCServer {
       );
 
       if (!isValid) {
-        logger.warn('Invalid signature from client:', message.senderId);
+        console.warn(
+          `☁️[WebRTCServer] Invalid signature from client: ${message.senderId}: ${message.nonce} <= ${clientData.lastNonce}`
+        );
         return false;
       }
+      console.log(
+        '☁️[WebRTCServer] Valid signature from client:',
+        message.senderId
+      );
 
       // Verify nonce is increasing
-      const lastNonce = this.clientNonces.get(message.senderId) || 0;
-      if (message.nonce <= lastNonce) {
-        logger.warn('Invalid nonce from client:', message.senderId);
+      if (message.nonce <= clientData.lastNonce) {
+        console.warn(
+          '☁️[WebRTCServer] Invalid nonce from client:',
+          message.senderId
+        );
         return false;
       }
-      this.clientNonces.set(message.senderId, message.nonce);
+      this.clientRegistry.set(message.senderId, {
+        ...clientData,
+        lastNonce: message.nonce,
+      });
 
       // Verify timestamp is recent
       const MAX_MESSAGE_AGE = 30000; // 30 seconds
       if (Date.now() - message.timestamp > MAX_MESSAGE_AGE) {
-        logger.warn('Message too old from client:', message.senderId);
+        console.warn(
+          '☁️[WebRTCServer] Message too old from client:',
+          message.senderId
+        );
         return false;
       }
 
       return true;
     } catch (error) {
-      logger.error('Error verifying client message:', error);
+      console.error('☁️[WebRTCServer] Error verifying client message:', error);
       return false;
     }
   }
@@ -123,8 +141,8 @@ export class WebRTCServer {
   private async verifyAndAuthorizeAction(
     signedAction: SignedMessage<SecureStoreAction>
   ): Promise<boolean> {
-    // First verify the signature
-    if (!(await this.verifyClientMessage(signedAction))) {
+    // First validate the signature
+    if (!(await this.validateClientMessage(signedAction))) {
       return false;
     }
 
@@ -133,13 +151,13 @@ export class WebRTCServer {
     // Check permissions if action requires them
     if (action.requiredCapability) {
       if (
-        !permissionManager.isAuthorized(
+        !this.permissionManager.isAuthorized(
           senderId,
           action.requiredCapability as Capability
         )
       ) {
-        logger.warn(
-          `Client ${senderId} lacks capability for action: ${action.type}`
+        console.warn(
+          `☁️[WebRTCServer] Client ${senderId} lacks capability for action: ${action.type}`
         );
         this.eventBus.emit({
           type: 'ERROR',
@@ -160,53 +178,25 @@ export class WebRTCServer {
     return true;
   }
 
-  private setupSecureMessageHandling() {
-    // Handle new client connections
-    // Note: We need to access the underlying peer connection events
-    const transport = this.eventBus.transport as any;
-    if (transport.peer && typeof transport.peer.on === 'function') {
-      transport.peer.on('connection', async (conn: DataConnection) => {
-        logger.log('New client connecting:', conn.peer);
-
-        // Initiate key exchange by sending server's public key
-        const identity = secureIdentityManager.getIdentity();
-        if (!identity) {
-          logger.error('Server identity not initialized');
-          return;
-        }
-
-        const { publicKey } = await exportKeyPair(identity.keyPair);
-
-        this.eventBus.emit({
-          type: 'SERVER_KEY_EXCHANGE',
-          payload: {
-            publicKey,
-          },
-          meta: {
-            timestamp: Date.now(),
-            sender: 'server',
-            target: conn.peer,
-          },
-        });
-      });
-    }
-
-    // Handle client key exchange response
+  private setupEventBusEvents() {
+    // Handle client key exchange
     this.eventBus.on('CLIENT_KEY_EXCHANGE', async (event) => {
       const signedKeyExchange = event.payload;
       const clientId = signedKeyExchange.senderId;
       const clientPublicKey = signedKeyExchange.payload.publicKey;
 
       // Verify the key exchange message
-      if (!(await this.verifyClientMessage(signedKeyExchange))) {
-        logger.error('Invalid client key exchange:', clientId);
+      if (!(await this.validateClientMessage(signedKeyExchange))) {
+        console.error('☁️[WebRTCServer] Invalid client key exchange:', clientId);
         return;
       }
+      console.log('☁️[WebRTCServer] Valid client key exchange:', clientId);
 
-      // Add to authorized clients
-      this.authorizedClients.set(clientId, {
+      // Add to client registry
+      this.clientRegistry.set(clientId, {
         id: clientId,
         publicKey: clientPublicKey,
+        lastNonce: signedKeyExchange.nonce,
       });
 
       // Check if this is the host by comparing public keys
@@ -216,32 +206,31 @@ export class WebRTCServer {
       );
 
       // Get domains
-      const systemDomain = permissionManager.getDomain('system');
-      const meetingDomain = permissionManager.getDomain('meeting');
+      const systemDomain = this.permissionManager.getDomain('system');
+      const meetingDomain = this.permissionManager.getDomain('meeting');
       if (!systemDomain || !meetingDomain) {
-        logger.error('Required domains not found');
+        console.error('☁️[WebRTCServer] Required domains not found');
         return;
       }
 
       try {
         if (isHost) {
-          // Host gets system-admin and meeting-executor roles
-          await permissionManager.assignRoleToUser(
-            'server',
-            systemDomain,
-            clientId,
-            'system-admin'
+          console.log(
+            '☁️[WebRTCServer] Data:',
+            this.permissionManager.domains,
+            this.permissionManager.roles
           );
-          await permissionManager.assignRoleToUser(
-            'server',
+          // Host gets meeting-executor roles
+          await this.permissionManager.assignRoleToUser(
+            this.hostIdentity.id,
             meetingDomain,
             clientId,
             'meeting-executor'
           );
         }
         // All clients get meeting-participant role
-        await permissionManager.assignRoleToUser(
-          'server',
+        await this.permissionManager.assignRoleToUser(
+          this.hostIdentity.id,
           meetingDomain,
           clientId,
           'meeting-participant'
@@ -261,7 +250,10 @@ export class WebRTCServer {
           },
         });
       } catch (error) {
-        logger.error('Failed to assign roles to client:', error);
+        console.error(
+          '☁️[WebRTCServer] Failed to assign roles to client:',
+          error
+        );
         this.eventBus.emit<'ERROR'>({
           type: 'ERROR',
           payload: {
@@ -284,6 +276,11 @@ export class WebRTCServer {
       if (!(await this.verifyAndAuthorizeAction(signedAction))) {
         return;
       }
+
+      console.log(
+        '☁️[WebRTCServer] Secure store action authorized:',
+        signedAction
+      );
 
       // Process authorized action
       const action = signedAction.payload;

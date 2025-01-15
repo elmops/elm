@@ -61,8 +61,6 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { FwbButton, FwbInput, FwbHeading, FwbAlert } from 'flowbite-vue';
 
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
-
 import { useAgentStore } from '@/2-process/2-engine/store/AgentStore';
 import { useMeetingStore } from '@/2-process/2-engine/store/MeetingStore';
 
@@ -87,7 +85,7 @@ const joinRoom = async () => {
     await meetingManager.joinMeeting(roomId.value);
     router.push(`/meeting/${roomId.value}`);
   } catch (error) {
-    logger.error('Failed to join room:', error);
+    console.error('Failed to join room:', error);
   }
 };
 

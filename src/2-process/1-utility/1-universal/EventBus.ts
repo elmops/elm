@@ -5,7 +5,6 @@ import type {
 } from '@/2-process/1-utility/1-universal/BaseEvents';
 import type { StoreEventMap } from '@/2-process/1-utility/1-universal/StoreEvents';
 import type { SecureEventMap } from '@/2-process/1-utility/1-universal/SecureEvents';
-import { logger } from '@/2-process/1-utility/1-universal/Logging';
 
 // Type-safe event mapping
 export interface EventMap extends StoreEventMap, SecureEventMap, BaseEventMap {}
@@ -20,7 +19,7 @@ export class AbstractEventBus {
 
   emit<K extends keyof EventMap>(event: AppEvent<EventMap[K], K>): void {
     // Log the event
-    logger.log(
+    console.log(
       `🔥[Event] ${event.type}${event.meta?.sender ? ` from ${event.meta.sender}` : ''}${
         event.meta?.target ? ` to ${event.meta.target}` : ''
       }`,

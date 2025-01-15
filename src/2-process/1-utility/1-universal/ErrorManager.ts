@@ -1,5 +1,3 @@
-import { logger } from './Logging';
-
 interface ErrorOptions {
   autoHandle?: boolean;
 }
@@ -52,7 +50,7 @@ export class ErrorManager {
   }
 
   notifyError(error: ApplicationError) {
-    logger.error({
+    console.error({
       code: error.code,
       message: error.message,
       context: error.context,
